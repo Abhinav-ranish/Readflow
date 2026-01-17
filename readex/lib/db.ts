@@ -119,9 +119,7 @@ async function queryD1(sql: string, params: any[] = []) {
 
 const cloudflareAdapter: DBAdapter = {
     async checkRateLimit(ip: string): Promise<boolean> {
-        try {
-            await queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER, ip_address TEXT)`);
-
+        const check = async () => {
             // Count posts from this IP in the last hour
             const oneHourAgo = Date.now() - RATE_LIMIT_WINDOW;
             const results = await queryD1(
@@ -131,9 +129,25 @@ const cloudflareAdapter: DBAdapter = {
 
             const count = results[0]?.count || 0;
             return count < RATE_LIMIT_MAX;
-        } catch (error) {
+        };
+
+        try {
+            await queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER, ip_address TEXT)`);
+            return await check();
+        } catch (error: any) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            // Auto-migrate if column is missing (for existing prod DBs)
+            if (errorMsg.includes("no such column") || errorMsg.includes("has no column")) {
+                console.log("Migrating D1 Schema: Adding ip_address column...");
+                try {
+                    await queryD1(`ALTER TABLE readmes ADD COLUMN ip_address TEXT`);
+                    return await check(); // Retry after migration
+                } catch (migError) {
+                    console.error("Migration Failed:", migError);
+                }
+            }
             console.error("Rate Limit Check Error:", error);
-            return true; // Fail open
+            return true; // Fail open on other errors
         }
     },
 
