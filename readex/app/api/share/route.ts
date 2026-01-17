@@ -17,9 +17,17 @@ export async function POST(request: NextRequest) {
         const origin = url.origin;
         const shareUrl = `${origin}/s/${id}`;
 
-        return NextResponse.json({ id, url: shareUrl });
-    } catch (error) {
+        // DEBUG: return status to diagnose Vercel env
+        const { getDbStatus } = require('@/lib/db');
+
+        return NextResponse.json({ id, url: shareUrl, debug: getDbStatus() });
+    } catch (error: any) {
         console.error('Share Error:', error);
-        return NextResponse.json({ error: 'Failed to share' }, { status: 500 });
+        const { getDbStatus } = require('@/lib/db');
+        return NextResponse.json({
+            error: 'Failed to share',
+            details: error instanceof Error ? error.message : String(error),
+            debug: getDbStatus()
+        }, { status: 500 });
     }
 }
