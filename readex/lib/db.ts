@@ -140,6 +140,18 @@ const cloudflareAdapter: DBAdapter = {
 };
 
 // --- 3. Export Logic ---
-const useCloudflare = CF_ACCOUNT_ID && CF_DB_ID && CF_API_TOKEN;
+const useCloudflare = !!(CF_ACCOUNT_ID && CF_DB_ID && CF_API_TOKEN);
 
 export const db = useCloudflare ? cloudflareAdapter : localAdapter;
+
+export function getDbStatus() {
+    return {
+        adapter: useCloudflare ? 'cloudflare' : 'local',
+        env: {
+            hasAccountId: !!CF_ACCOUNT_ID,
+            hasDbId: !!CF_DB_ID,
+            hasToken: !!CF_API_TOKEN,
+            nodeEnv: process.env.NODE_ENV
+        }
+    };
+}
