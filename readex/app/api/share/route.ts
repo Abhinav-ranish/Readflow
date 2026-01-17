@@ -10,7 +10,15 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid content' }, { status: 400 });
         }
 
-        const id = await db.saveReadme(content);
+        // Rate Limiting
+        const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
+        const allowed = await db.checkRateLimit(ip);
+
+        if (!allowed) {
+            return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 });
+        }
+
+        const id = await db.saveReadme(content, ip);
 
         // Construct absolute URL
         const url = new URL(request.url);

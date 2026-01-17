@@ -4,8 +4,9 @@ import path from 'path';
 
 // Interface for the DB adapter
 interface DBAdapter {
-    saveReadme(content: string): Promise<string>;
+    saveReadme(content: string, ip?: string): Promise<string>;
     getReadme(id: string): Promise<string | null>;
+    checkRateLimit(ip: string): Promise<boolean>;
 }
 
 // --- 1. Local Adapter (Development) ---
@@ -42,19 +43,27 @@ function writeStore(data: Record<string, string>) {
 }
 
 // In-memory fallback for environments without write access (Vercel without D1 configured)
-const memoryStore = new Map<string, string>();
+const memoryStore = new Map<string, any>();
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_MAX = 25; // Posts per hour
 
 const localAdapter: DBAdapter = {
-    async saveReadme(content: string): Promise<string> {
+    async checkRateLimit(ip: string): Promise<boolean> {
+        // Simple in-memory rate limit for dev
+        return true;
+    },
+
+    async saveReadme(content: string, ip?: string): Promise<string> {
         const id = nanoid(10);
+        const data = { content, ip, createdAt: Date.now() };
 
         // Try file system if in dev, else memory
         if (process.env.NODE_ENV === 'development') {
             const store = readStore();
-            store[id] = content;
+            store[id] = JSON.stringify(data);
             writeStore(store);
         } else {
-            memoryStore.set(id, content);
+            memoryStore.set(id, data);
             console.warn("Using In-Memory Store. Data will be lost on restart. Configure Cloudflare D1 for persistence.");
         }
 
@@ -62,12 +71,14 @@ const localAdapter: DBAdapter = {
     },
 
     async getReadme(id: string): Promise<string | null> {
+        let entry: any = null;
         if (process.env.NODE_ENV === 'development') {
             const store = readStore();
-            return store[id] || null;
+            entry = store[id] ? JSON.parse(store[id]) : null;
         } else {
-            return memoryStore.get(id) || null;
+            entry = memoryStore.get(id);
         }
+        return entry ? entry.content || entry : null; // Handle both old string format and new obj format
     }
 };
 
@@ -107,14 +118,33 @@ async function queryD1(sql: string, params: any[] = []) {
 }
 
 const cloudflareAdapter: DBAdapter = {
-    async saveReadme(content: string): Promise<string> {
+    async checkRateLimit(ip: string): Promise<boolean> {
+        try {
+            await queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER, ip_address TEXT)`);
+
+            // Count posts from this IP in the last hour
+            const oneHourAgo = Date.now() - RATE_LIMIT_WINDOW;
+            const results = await queryD1(
+                `SELECT count(*) as count FROM readmes WHERE ip_address = ? AND created_at > ?`,
+                [ip, oneHourAgo]
+            );
+
+            const count = results[0]?.count || 0;
+            return count < RATE_LIMIT_MAX;
+        } catch (error) {
+            console.error("Rate Limit Check Error:", error);
+            return true; // Fail open
+        }
+    },
+
+    async saveReadme(content: string, ip?: string): Promise<string> {
         const id = nanoid(10);
-        // Create table if not exists (lazy init)
-        await queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER)`);
+        // Create table if not exists (lazy init) - column added
+        await queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER, ip_address TEXT)`);
 
         await queryD1(
-            `INSERT INTO readmes (id, content, created_at) VALUES (?, ?, ?)`,
-            [id, content, Date.now()]
+            `INSERT INTO readmes (id, content, created_at, ip_address) VALUES (?, ?, ?, ?)`,
+            [id, content, Date.now(), ip || 'unknown']
         );
 
         return id;
