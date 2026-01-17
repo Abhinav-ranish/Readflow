@@ -1,0 +1,35 @@
+.toggleButton {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: var(--accent-dim);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 50px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    font-weight: 500;
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+.toggleButton:hover {
+    transform: translateY(-2px);
+    background-color: var(--accent-primary);
+}
+
+.toggleButton:active {
+    transform: translateY(0);
+}
+
+.label {
+    font-size: 0.95rem;
+}
+
+@media (min-width: 768px) {
+    .toggleButton {
+        display: none;
+    }
+}

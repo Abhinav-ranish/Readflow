@@ -1,0 +1,97 @@
+.container {
+    min-height: 100vh;
+    background-color: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    height: 60px;
+    border-bottom: 1px solid var(--border-subtle);
+    background-color: var(--bg-secondary);
+}
+
+.branding {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.logoLink {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 400;
+    font-size: 1.4rem;
+    color: var(--fg-primary);
+    text-decoration: none;
+    font-family: var(--font-display);
+    letter-spacing: 0.5px;
+}
+
+.logoIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background-color: var(--fg-primary);
+    color: var(--bg-primary);
+    border-radius: 6px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    font-family: var(--font-sans);
+    /* Keep icon simplistic */
+}
+
+.separator {
+    color: var(--fg-muted);
+    font-size: 1.2rem;
+}
+
+.badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background-color: rgba(56, 139, 253, 0.1);
+    /* Blue tint */
+    color: var(--accent-primary);
+    padding: 4px 10px;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid rgba(88, 166, 255, 0.2);
+}
+
+.createLink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-tertiary);
+    color: var(--fg-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: 1px solid var(--border-subtle);
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.createLink:hover {
+    background-color: var(--border-subtle);
+    border-color: var(--fg-secondary);
+    color: #ffffff;
+}
+
+.main {
+    flex: 1;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    /* Reusing preview styles from Preview component which adapts to container */
+}
