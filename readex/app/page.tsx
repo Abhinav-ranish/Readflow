@@ -6,6 +6,7 @@ import TopBar from '@/components/TopBar';
 import Editor from '@/components/Editor';
 import Preview from '@/components/Preview';
 import MobileToggle from '@/components/MobileToggle';
+import ShareModal from '@/components/ShareModal';
 import clsx from 'clsx';
 
 const DEFAULT_MARKDOWN = `# Welcome to Readex
@@ -27,6 +28,8 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
   const [isSharing, setIsSharing] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string>('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Load from LocalStorage
   useEffect(() => {
@@ -54,10 +57,8 @@ export default function Home() {
       if (!res.ok) throw new Error('Failed to share');
 
       const data = await res.json();
-      await navigator.clipboard.writeText(data.url);
-
-      // Could use a toast here, but alert is fine for now as requested "Simple"
-      alert('Link copied to clipboard! ' + data.url);
+      setShareUrl(data.url);
+      setIsModalOpen(true);
     } catch (error) {
       console.error(error);
       alert('Error sharing document.');
@@ -97,6 +98,12 @@ export default function Home() {
       <MobileToggle
         viewMode={viewMode}
         onToggle={() => setViewMode(v => v === 'editor' ? 'preview' : 'editor')}
+      />
+
+      <ShareModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        url={shareUrl}
       />
     </main>
   );

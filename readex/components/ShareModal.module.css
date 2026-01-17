@@ -1,0 +1,117 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.modal {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 480px;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.closeButton {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    color: var(--fg-secondary);
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.closeButton:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--fg-primary);
+}
+
+.title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    color: var(--fg-primary);
+}
+
+.subtitle {
+    color: var(--fg-secondary);
+    font-size: 0.95rem;
+    margin-bottom: 24px;
+}
+
+.inputGroup {
+    display: flex;
+    gap: 8px;
+    background-color: var(--bg-secondary);
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+}
+
+.input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--fg-primary);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    padding: 8px 12px;
+    outline: none;
+    width: 100%;
+}
+
+.copyButton {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: var(--bg-tertiary);
+    color: var(--fg-primary);
+    border: 1px solid var(--border-subtle);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.copyButton:hover {
+    background-color: var(--border-subtle);
+    border-color: var(--fg-secondary);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

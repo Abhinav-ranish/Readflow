@@ -127,8 +127,13 @@ const cloudflareAdapter: DBAdapter = {
             if (results.length > 0) {
                 return results[0].content as string;
             }
-        } catch (error) {
-            console.error("D1 Fetch Error (Table might not exist yet):", error);
+        } catch (error: any) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            // Suppress "no such table" error as it just means the DB is empty
+            if (errorMsg.includes("no such table")) {
+                return null;
+            }
+            console.error("D1 Fetch Error:", error);
         }
         return null;
     }
