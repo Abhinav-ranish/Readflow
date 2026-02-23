@@ -13,7 +13,7 @@ export default function TopBar({ onShare, isSharing }: TopBarProps) {
         <header className={styles.header}>
             <div className={styles.logo}>
                 <span className={styles.logoIcon}>R</span>
-                <span className={styles.logoText}>Readex</span>
+                <span className={styles.logoText}>Readflow</span>
             </div>
             <button
                 className={styles.shareButton}

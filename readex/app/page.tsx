@@ -9,7 +9,7 @@ import MobileToggle from '@/components/MobileToggle';
 import ShareModal from '@/components/ShareModal';
 import clsx from 'clsx';
 
-const DEFAULT_MARKDOWN = `# Welcome to Readex
+const DEFAULT_MARKDOWN = `# Welcome to Readflow
 
 Start typing in the editor to the left to see your changes appear here instantly.
 
