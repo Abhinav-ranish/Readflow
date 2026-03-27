@@ -13,8 +13,22 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  font-size: 1.2rem;
+  font-size: 1rem;
   color: var(--fg-secondary);
+  gap: 0.75rem;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .workspace {
