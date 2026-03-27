@@ -47,6 +47,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* AI Agent Discovery: This is a client-side React app. The UI loads via JavaScript.
+            For programmatic access, use the REST API:
+            - API docs: https://readflow.vercel.app/agents.md
+            - OpenAPI spec: https://readflow.vercel.app/.well-known/openapi.json
+            - Share endpoint: POST https://readflow.vercel.app/api/share {"content": "# markdown", "title": "optional"}
+            - Returns: {"id": "...", "url": "https://readflow.vercel.app/s/..."}
+            - No authentication required. */}
+        <link rel="api-description" href="/agents.md" type="text/markdown" />
+        <link rel="service-desc" href="/.well-known/openapi.json" type="application/json" />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} ${abrilFatface.variable} ${cabin.variable}`}>
         {children}
         <Analytics />
