@@ -25,8 +25,19 @@ const cabin = Cabin({
 });
 
 export const metadata: Metadata = {
-  title: "Readflow | Shareable Markdown",
-  description: "Write, preview, and share README files instantly.",
+  title: "Readflow — Write, Preview & Share Markdown",
+  description: "A fast, minimal markdown editor with live preview. Write your README, share a read-only link, download as PDF — all from the browser.",
+  openGraph: {
+    title: "Readflow — Write, Preview & Share Markdown",
+    description: "A fast, minimal markdown editor with live preview. Write your README, share a read-only link, download as PDF.",
+    siteName: "Readflow",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Readflow — Write, Preview & Share Markdown",
+    description: "A fast, minimal markdown editor with live preview. Write your README, share a read-only link, download as PDF.",
+  },
 };
 
 export default function RootLayout({
