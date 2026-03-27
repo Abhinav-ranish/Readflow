@@ -3,9 +3,14 @@ import fs from 'fs';
 import path from 'path';
 
 // Interface for the DB adapter
+export interface ReadmeEntry {
+    content: string;
+    title?: string;
+}
+
 interface DBAdapter {
-    saveReadme(content: string, ip?: string): Promise<string>;
-    getReadme(id: string): Promise<string | null>;
+    saveReadme(content: string, ip?: string, title?: string): Promise<string>;
+    getReadme(id: string): Promise<ReadmeEntry | null>;
     checkRateLimit(ip: string): Promise<boolean>;
 }
 
@@ -53,9 +58,9 @@ const localAdapter: DBAdapter = {
         return true;
     },
 
-    async saveReadme(content: string, ip?: string): Promise<string> {
+    async saveReadme(content: string, ip?: string, title?: string): Promise<string> {
         const id = nanoid(10);
-        const data = { content, ip, createdAt: Date.now() };
+        const data = { content, title, ip, createdAt: Date.now() };
 
         // Try file system if in dev, else memory
         if (process.env.NODE_ENV === 'development') {
@@ -70,15 +75,19 @@ const localAdapter: DBAdapter = {
         return id;
     },
 
-    async getReadme(id: string): Promise<string | null> {
-        let entry: any = null;
+    async getReadme(id: string): Promise<ReadmeEntry | null> {
+        let entry: Record<string, unknown> | null = null;
         if (process.env.NODE_ENV === 'development') {
             const store = readStore();
             entry = store[id] ? JSON.parse(store[id]) : null;
         } else {
-            entry = memoryStore.get(id);
+            entry = memoryStore.get(id) ?? null;
         }
-        return entry ? entry.content || entry : null; // Handle both old string format and new obj format
+        if (!entry) return null;
+        // Handle both old string format and new obj format
+        const content = (entry.content as string) || (typeof entry === 'string' ? entry : null);
+        if (!content) return null;
+        return { content, title: (entry.title as string) || undefined };
     }
 };
 
@@ -151,30 +160,54 @@ const cloudflareAdapter: DBAdapter = {
         }
     },
 
-    async saveReadme(content: string, ip?: string): Promise<string> {
+    async saveReadme(content: string, ip?: string, title?: string): Promise<string> {
         const id = nanoid(10);
-        // Create table if not exists (lazy init) - column added
-        await queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER, ip_address TEXT)`);
+        // Create table if not exists (lazy init) - includes title column
+        await queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER, ip_address TEXT, title TEXT)`);
 
-        await queryD1(
-            `INSERT INTO readmes (id, content, created_at, ip_address) VALUES (?, ?, ?, ?)`,
-            [id, content, Date.now(), ip || 'unknown']
-        );
+        // Auto-migrate: add title column if missing on existing tables
+        try {
+            await queryD1(
+                `INSERT INTO readmes (id, content, created_at, ip_address, title) VALUES (?, ?, ?, ?, ?)`,
+                [id, content, Date.now(), ip || 'unknown', title || null]
+            );
+        } catch (error: unknown) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            if (errorMsg.includes("no such column") || errorMsg.includes("has no column")) {
+                console.log("Migrating D1 Schema: Adding title column...");
+                await queryD1(`ALTER TABLE readmes ADD COLUMN title TEXT`);
+                await queryD1(
+                    `INSERT INTO readmes (id, content, created_at, ip_address, title) VALUES (?, ?, ?, ?, ?)`,
+                    [id, content, Date.now(), ip || 'unknown', title || null]
+                );
+            } else {
+                throw error;
+            }
+        }
 
         return id;
     },
 
-    async getReadme(id: string): Promise<string | null> {
-        // Check table exists first to avoid error on fresh DB
+    async getReadme(id: string): Promise<ReadmeEntry | null> {
         try {
-            const results = await queryD1(`SELECT content FROM readmes WHERE id = ? LIMIT 1`, [id]);
+            const results = await queryD1(`SELECT content, title FROM readmes WHERE id = ? LIMIT 1`, [id]);
             if (results.length > 0) {
-                return results[0].content as string;
+                return {
+                    content: results[0].content as string,
+                    title: (results[0].title as string) || undefined,
+                };
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            // Suppress "no such table" error as it just means the DB is empty
             if (errorMsg.includes("no such table")) {
+                return null;
+            }
+            // If title column doesn't exist yet, fall back to content-only query
+            if (errorMsg.includes("no such column")) {
+                const results = await queryD1(`SELECT content FROM readmes WHERE id = ? LIMIT 1`, [id]);
+                if (results.length > 0) {
+                    return { content: results[0].content as string };
+                }
                 return null;
             }
             console.error("D1 Fetch Error:", error);
