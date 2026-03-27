@@ -1,6 +1,7 @@
 import React from 'react';
 import { db } from '@/lib/db';
 import Preview from '@/components/Preview';
+import DownloadButtons from '@/components/DownloadButtons';
 import styles from './page.module.css';
 import { notFound } from 'next/navigation';
 import { Lock } from 'lucide-react';
@@ -11,7 +12,6 @@ interface Props {
 }
 
 export default async function SharedReadmePage({ params }: Props) {
-    // Await params per Next.js 15 requirement
     const { id } = await params;
 
     const content = await db.getReadme(id);
@@ -34,12 +34,17 @@ export default async function SharedReadmePage({ params }: Props) {
                         <span>Read Only</span>
                     </div>
                 </div>
-                <Link href="/" className={styles.createLink}>
-                    Create New
-                </Link>
+                <div className={styles.actions}>
+                    <DownloadButtons content={content} />
+                    <Link href="/" className={styles.createLink}>
+                        Create New
+                    </Link>
+                </div>
             </header>
             <main className={styles.main}>
-                <Preview content={content} />
+                <div data-preview-content>
+                    <Preview content={content} />
+                </div>
             </main>
         </div>
     );
