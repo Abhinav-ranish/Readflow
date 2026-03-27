@@ -51,6 +51,29 @@
     to { opacity: 1; }
 }
 
+.lastLinkButton {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--fg-secondary);
+    padding: 0.4rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.lastLinkButton:hover {
+    color: var(--accent-primary);
+    background-color: rgba(88, 166, 255, 0.08);
+    border-color: rgba(88, 166, 255, 0.15);
+}
+
+.lastLinkLabel {
+    font-family: var(--font-action);
+}
+
 .shareButton {
     display: flex;
     align-items: center;
@@ -101,5 +124,13 @@
 
     .errorToast {
         font-size: 0.75rem;
+    }
+
+    .lastLinkButton {
+        padding: 0.4rem;
+    }
+
+    .lastLinkLabel {
+        display: none;
     }
 }

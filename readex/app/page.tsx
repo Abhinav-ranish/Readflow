@@ -36,6 +36,8 @@ export default function Home() {
   useEffect(() => {
     const saved = localStorage.getItem('readex_draft');
     setMarkdown(saved !== null ? saved : DEFAULT_MARKDOWN);
+    const lastUrl = localStorage.getItem('readex_last_share_url');
+    if (lastUrl) setShareUrl(lastUrl);
     setIsLoaded(true);
   }, []);
 
@@ -63,6 +65,7 @@ export default function Home() {
 
       const data = await res.json();
       setShareUrl(data.url);
+      localStorage.setItem('readex_last_share_url', data.url);
       setIsModalOpen(true);
     } catch (error) {
       console.error(error);
@@ -87,7 +90,13 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
-      <TopBar onShare={handleShare} isSharing={isSharing} error={shareError} />
+      <TopBar
+        onShare={handleShare}
+        isSharing={isSharing}
+        error={shareError}
+        lastShareUrl={shareUrl}
+        onShowLastLink={() => setIsModalOpen(true)}
+      />
 
       <div className={styles.workspace}>
         {/* Editor Pane */}
