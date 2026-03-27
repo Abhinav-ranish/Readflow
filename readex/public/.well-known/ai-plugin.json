@@ -1,0 +1,15 @@
+{
+  "schema_version": "v1",
+  "name": "Readflow",
+  "description": "Create shareable read-only markdown documents. Post markdown content and get back a public URL with rendered preview, PDF download, and rich social media embeds.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://readflow.vercel.app/.well-known/openapi.json"
+  },
+  "logo_url": "https://readflow.vercel.app/icon.svg",
+  "contact_email": "",
+  "legal_info_url": ""
+}
