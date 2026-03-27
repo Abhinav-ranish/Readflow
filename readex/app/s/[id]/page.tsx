@@ -14,11 +14,13 @@ interface Props {
 export default async function SharedReadmePage({ params }: Props) {
     const { id } = await params;
 
-    const content = await db.getReadme(id);
+    const entry = await db.getReadme(id);
 
-    if (!content) {
+    if (!entry) {
         notFound();
     }
+
+    const { content, title } = entry;
 
     return (
         <div className={styles.container}>
@@ -29,13 +31,17 @@ export default async function SharedReadmePage({ params }: Props) {
                         <span className={styles.logoText}>Readflow</span>
                     </Link>
                     <div className={styles.separator}>/</div>
-                    <div className={styles.badge}>
-                        <Lock size={14} />
-                        <span>Read Only</span>
-                    </div>
+                    {title ? (
+                        <span className={styles.docTitle}>{title}</span>
+                    ) : (
+                        <div className={styles.badge}>
+                            <Lock size={14} />
+                            <span>Read Only</span>
+                        </div>
+                    )}
                 </div>
                 <div className={styles.actions}>
-                    <DownloadButtons content={content} />
+                    <DownloadButtons content={content} title={title} />
                     <Link href="/" className={styles.createLink}>
                         Create New
                     </Link>

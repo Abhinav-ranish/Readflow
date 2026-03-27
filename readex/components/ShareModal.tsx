@@ -1,18 +1,24 @@
 'use client';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Copy, Check } from 'lucide-react';
+import { X, Copy, Check, Share2 } from 'lucide-react';
 import styles from './ShareModal.module.css';
 
 interface ShareModalProps {
     isOpen: boolean;
     onClose: () => void;
     url: string;
+    onShare: (title: string) => void;
+    isSharing: boolean;
 }
 
-export default function ShareModal({ isOpen, onClose, url }: ShareModalProps) {
+export default function ShareModal({ isOpen, onClose, url, onShare, isSharing }: ShareModalProps) {
     const [copied, setCopied] = useState(false);
+    const [title, setTitle] = useState('');
     const modalRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const titleInputRef = useRef<HTMLInputElement>(null);
+    const urlInputRef = useRef<HTMLInputElement>(null);
+
+    const hasUrl = url.length > 0;
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
@@ -21,16 +27,29 @@ export default function ShareModal({ isOpen, onClose, url }: ShareModalProps) {
     useEffect(() => {
         if (isOpen) {
             document.addEventListener('keydown', handleKeyDown);
-            // Focus the input when modal opens
-            setTimeout(() => inputRef.current?.select(), 100);
-            // Prevent body scroll
             document.body.style.overflow = 'hidden';
+            // Focus title input if no URL yet, otherwise focus URL
+            setTimeout(() => {
+                if (hasUrl) {
+                    urlInputRef.current?.select();
+                } else {
+                    titleInputRef.current?.focus();
+                }
+            }, 100);
         }
         return () => {
             document.removeEventListener('keydown', handleKeyDown);
             document.body.style.overflow = '';
         };
-    }, [isOpen, handleKeyDown]);
+    }, [isOpen, handleKeyDown, hasUrl]);
+
+    // Reset title when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            setTitle('');
+            setCopied(false);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -42,6 +61,11 @@ export default function ShareModal({ isOpen, onClose, url }: ShareModalProps) {
         } catch (err) {
             console.error('Failed to copy', err);
         }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onShare(title.trim());
     };
 
     return (
@@ -59,24 +83,58 @@ export default function ShareModal({ isOpen, onClose, url }: ShareModalProps) {
                     <X size={20} />
                 </button>
 
-                <h3 className={styles.title} id="share-modal-title">Share your README</h3>
-                <p className={styles.subtitle}>Anyone with this link can view your document.</p>
+                <h3 className={styles.title} id="share-modal-title">
+                    {hasUrl ? 'Your link is ready' : 'Share your document'}
+                </h3>
 
-                <div className={styles.inputGroup}>
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={url}
-                        readOnly
-                        className={styles.input}
-                        onClick={(e) => e.currentTarget.select()}
-                        aria-label="Share URL"
-                    />
-                    <button className={styles.copyButton} onClick={handleCopy}>
-                        {copied ? <Check size={18} /> : <Copy size={18} />}
-                        <span>{copied ? 'Copied' : 'Copy'}</span>
-                    </button>
-                </div>
+                {!hasUrl ? (
+                    <>
+                        <p className={styles.subtitle}>
+                            Give it a title so downloads are named properly. Optional.
+                        </p>
+                        <form onSubmit={handleSubmit}>
+                            <div className={styles.titleGroup}>
+                                <input
+                                    ref={titleInputRef}
+                                    type="text"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    placeholder="e.g. Project Setup Guide"
+                                    className={styles.titleInput}
+                                    maxLength={100}
+                                    aria-label="Document title"
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                className={styles.shareSubmitButton}
+                                disabled={isSharing}
+                            >
+                                <Share2 size={16} />
+                                {isSharing ? 'Creating link...' : 'Create share link'}
+                            </button>
+                        </form>
+                    </>
+                ) : (
+                    <>
+                        <p className={styles.subtitle}>Anyone with this link can view your document.</p>
+                        <div className={styles.inputGroup}>
+                            <input
+                                ref={urlInputRef}
+                                type="text"
+                                value={url}
+                                readOnly
+                                className={styles.input}
+                                onClick={(e) => e.currentTarget.select()}
+                                aria-label="Share URL"
+                            />
+                            <button className={styles.copyButton} onClick={handleCopy}>
+                                {copied ? <Check size={18} /> : <Copy size={18} />}
+                                <span>{copied ? 'Copied' : 'Copy'}</span>
+                            </button>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
