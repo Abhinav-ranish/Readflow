@@ -50,7 +50,58 @@
 .subtitle {
     color: var(--fg-secondary);
     font-size: 0.95rem;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
+}
+
+.titleGroup {
+    margin-bottom: 16px;
+}
+
+.titleInput {
+    width: 100%;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    color: var(--fg-primary);
+    font-size: 0.95rem;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: var(--font-sans);
+}
+
+.titleInput:focus {
+    border-color: var(--accent-primary);
+}
+
+.titleInput::placeholder {
+    color: var(--fg-muted);
+}
+
+.shareSubmitButton {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background-color: var(--accent-dim);
+    color: #ffffff;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+    font-family: var(--font-action);
+    cursor: pointer;
+}
+
+.shareSubmitButton:hover:not(:disabled) {
+    background-color: var(--accent-primary);
+}
+
+.shareSubmitButton:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 
 .inputGroup {

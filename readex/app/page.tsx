@@ -31,13 +31,14 @@ export default function Home() {
   const [shareUrl, setShareUrl] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [lastShareUrl, setLastShareUrl] = useState<string>('');
 
   // Load from LocalStorage
   useEffect(() => {
     const saved = localStorage.getItem('readex_draft');
     setMarkdown(saved !== null ? saved : DEFAULT_MARKDOWN);
     const lastUrl = localStorage.getItem('readex_last_share_url');
-    if (lastUrl) setShareUrl(lastUrl);
+    if (lastUrl) setLastShareUrl(lastUrl);
     setIsLoaded(true);
   }, []);
 
@@ -48,14 +49,21 @@ export default function Home() {
     }
   }, [markdown, isLoaded]);
 
-  const handleShare = async () => {
+  const openShareModal = () => {
+    // Reset shareUrl so the modal shows the title input (fresh share)
+    setShareUrl('');
+    setShareError(null);
+    setIsModalOpen(true);
+  };
+
+  const handleShare = async (title: string) => {
     setIsSharing(true);
     setShareError(null);
     try {
       const res = await fetch('/api/share', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: markdown }),
+        body: JSON.stringify({ content: markdown, title: title || undefined }),
       });
 
       if (!res.ok) {
@@ -65,8 +73,8 @@ export default function Home() {
 
       const data = await res.json();
       setShareUrl(data.url);
+      setLastShareUrl(data.url);
       localStorage.setItem('readex_last_share_url', data.url);
-      setIsModalOpen(true);
     } catch (error) {
       console.error(error);
       const message = error instanceof Error ? error.message : 'Failed to share';
@@ -75,6 +83,11 @@ export default function Home() {
     } finally {
       setIsSharing(false);
     }
+  };
+
+  const handleShowLastLink = () => {
+    setShareUrl(lastShareUrl);
+    setIsModalOpen(true);
   };
 
   if (!isLoaded) {
@@ -91,11 +104,11 @@ export default function Home() {
   return (
     <main className={styles.main}>
       <TopBar
-        onShare={handleShare}
+        onShare={openShareModal}
         isSharing={isSharing}
         error={shareError}
-        lastShareUrl={shareUrl}
-        onShowLastLink={() => setIsModalOpen(true)}
+        lastShareUrl={lastShareUrl}
+        onShowLastLink={handleShowLastLink}
       />
 
       <div className={styles.workspace}>
@@ -123,6 +136,8 @@ export default function Home() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         url={shareUrl}
+        onShare={handleShare}
+        isSharing={isSharing}
       />
     </main>
   );

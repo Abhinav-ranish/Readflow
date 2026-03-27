@@ -52,6 +52,16 @@
     font-size: 1.2rem;
 }
 
+.docTitle {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--fg-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
 .badge {
     display: flex;
     align-items: center;
