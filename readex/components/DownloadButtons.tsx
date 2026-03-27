@@ -8,6 +8,93 @@ interface DownloadButtonsProps {
     title?: string;
 }
 
+// GitHub-flavored light mode CSS for PDF rendering
+const PDF_STYLES = `
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    background: #ffffff;
+    color: #1f2328;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    word-wrap: break-word;
+    padding: 40px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #1f2328;
+}
+h1 { font-size: 2em; padding-bottom: 0.3em; border-bottom: 1px solid #d1d9e0; }
+h2 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid #d1d9e0; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1em; }
+h5 { font-size: 0.875em; }
+h6 { font-size: 0.85em; color: #656d76; }
+p { margin-bottom: 16px; }
+a { color: #0969da; text-decoration: none; }
+strong, b { font-weight: 600; }
+em, i { font-style: italic; }
+code {
+    padding: 0.2em 0.4em;
+    font-size: 85%;
+    background-color: #eff1f3;
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    color: #1f2328;
+}
+pre {
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    background-color: #f6f8fa;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    border: 1px solid #d1d9e0;
+}
+pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+    font-size: 100%;
+}
+blockquote {
+    padding: 0 1em;
+    color: #656d76;
+    border-left: 0.25em solid #d1d9e0;
+    margin: 0 0 16px 0;
+}
+ul, ol { padding-left: 2em; margin-bottom: 16px; }
+li { margin-bottom: 4px; }
+li > ul, li > ol { margin-bottom: 0; }
+table {
+    border-spacing: 0;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+    width: 100%;
+}
+table th, table td {
+    padding: 6px 13px;
+    border: 1px solid #d1d9e0;
+}
+table th { font-weight: 600; background-color: #f6f8fa; }
+table tr:nth-child(2n) { background-color: #f6f8fa; }
+hr {
+    height: 0.25em;
+    padding: 0;
+    margin: 24px 0;
+    background-color: #d1d9e0;
+    border: 0;
+}
+img { max-width: 100%; }
+del { text-decoration: line-through; color: #656d76; }
+`;
+
 export default function DownloadButtons({ content, title }: DownloadButtonsProps) {
     const [pdfLoading, setPdfLoading] = useState(false);
 
@@ -30,86 +117,49 @@ export default function DownloadButtons({ content, title }: DownloadButtonsProps
         try {
             const html2pdf = (await import('html2pdf.js')).default;
 
+            // Get the rendered markdown HTML
             const previewEl = document.querySelector('[data-preview-content]');
             if (!previewEl) return;
 
-            // Clone the element so we can style it for PDF without affecting the page
-            const clone = previewEl.cloneNode(true) as HTMLElement;
+            // Extract raw HTML and strip all class/style attributes
+            // This removes every CSS module class that carries dark theme styles
+            const rawHtml = previewEl.innerHTML;
+            const cleanHtml = rawHtml
+                .replace(/\s*class="[^"]*"/g, '')
+                .replace(/\s*style="[^"]*"/g, '')
+                .replace(/\s*data-[a-z-]*="[^"]*"/g, '');
 
-            // Apply light-mode styles for clean PDF output
-            clone.style.cssText = `
-                background: white;
-                color: #1f2328;
-                padding: 32px;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                line-height: 1.6;
-                max-width: 800px;
+            // Build a fully self-contained light-mode document
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <style>${PDF_STYLES}</style>
+                <div style="background:#ffffff;color:#1f2328;padding:40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">
+                    ${cleanHtml}
+                </div>
             `;
 
-            // Override dark theme colors in the clone
-            const allEls = clone.querySelectorAll('*');
-            allEls.forEach((el) => {
-                const htmlEl = el as HTMLElement;
-                const computed = window.getComputedStyle(el);
-                // Reset backgrounds that are dark-themed
-                if (computed.backgroundColor && computed.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-                    const bg = computed.backgroundColor;
-                    if (bg.includes('13, 17, 23') || bg.includes('1, 4, 9') || bg.includes('22, 27, 34')) {
-                        htmlEl.style.backgroundColor = '#f6f8fa';
-                    }
-                }
-                // Reset text colors that are light-on-dark
-                if (computed.color) {
-                    const c = computed.color;
-                    if (c.includes('201, 209, 217') || c.includes('139, 148, 158')) {
-                        htmlEl.style.color = '#1f2328';
-                    }
-                }
-                // Fix border colors
-                if (computed.borderColor && computed.borderColor.includes('48, 54, 61')) {
-                    htmlEl.style.borderColor = '#d0d7de';
-                }
-            });
-
-            // Fix headings border
-            clone.querySelectorAll('h1, h2').forEach((el) => {
-                (el as HTMLElement).style.borderBottomColor = '#d0d7de';
-            });
-
-            // Fix code blocks
-            clone.querySelectorAll('pre').forEach((el) => {
-                (el as HTMLElement).style.backgroundColor = '#f6f8fa';
-                (el as HTMLElement).style.color = '#1f2328';
-            });
-
-            clone.querySelectorAll('code').forEach((el) => {
-                const parent = el.parentElement;
-                if (parent && parent.tagName !== 'PRE') {
-                    (el as HTMLElement).style.backgroundColor = '#eff1f3';
-                    (el as HTMLElement).style.color = '#1f2328';
-                }
-            });
-
-            // Fix links
-            clone.querySelectorAll('a').forEach((el) => {
-                (el as HTMLElement).style.color = '#0969da';
-            });
-
-            // Fix blockquotes
-            clone.querySelectorAll('blockquote').forEach((el) => {
-                (el as HTMLElement).style.color = '#656d76';
-                (el as HTMLElement).style.borderLeftColor = '#d0d7de';
-            });
+            // Must be in DOM for html2canvas to measure, but hidden
+            container.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;background:#ffffff;z-index:-1;';
+            document.body.appendChild(container);
 
             const opt = {
-                margin: [10, 10, 10, 10],
+                margin: [15, 15, 15, 15],
                 filename: `${filename}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
             };
 
-            await html2pdf().set(opt).from(clone).save();
+            const target = container.querySelector('div') as HTMLElement;
+            await html2pdf().set(opt).from(target).save();
+
+            document.body.removeChild(container);
         } catch (error) {
             console.error('PDF generation failed:', error);
         } finally {
