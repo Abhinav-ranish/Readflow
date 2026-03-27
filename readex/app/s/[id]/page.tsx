@@ -6,9 +6,57 @@ import styles from './page.module.css';
 import { notFound } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 
 interface Props {
     params: Promise<{ id: string }>;
+}
+
+function extractPlainText(markdown: string): string {
+    return markdown
+        .replace(/^#{1,6}\s+/gm, '')       // headings
+        .replace(/[*_~`>]/g, '')            // bold, italic, strikethrough, code, blockquote
+        .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1') // links/images
+        .replace(/```[\s\S]*?```/g, '')     // code blocks
+        .replace(/\n{2,}/g, ' ')            // collapse newlines
+        .replace(/\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+    const { id } = await params;
+    const entry = await db.getReadme(id);
+
+    if (!entry) {
+        return { title: 'Not Found — Readflow' };
+    }
+
+    const { content, title } = entry;
+    const plainText = extractPlainText(content);
+    const description = plainText.length > 155
+        ? plainText.slice(0, 155) + '...'
+        : plainText;
+
+    const pageTitle = title
+        ? `${title} — Readflow`
+        : 'Shared Document — Readflow';
+
+    return {
+        title: pageTitle,
+        description,
+        openGraph: {
+            title: title || 'Shared Document',
+            description,
+            siteName: 'Readflow',
+            type: 'article',
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: title || 'Shared Document',
+            description,
+        },
+    };
 }
 
 export default async function SharedReadmePage({ params }: Props) {
