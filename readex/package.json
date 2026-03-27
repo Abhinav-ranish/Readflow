@@ -15,6 +15,7 @@
     "@uiw/react-codemirror": "^4.25.4",
     "@vercel/analytics": "^1.6.1",
     "clsx": "^2.1.1",
+    "html2pdf.js": "^0.14.0",
     "lucide-react": "^0.562.0",
     "nanoid": "^5.1.6",
     "next": "16.1.3",

@@ -5,17 +5,20 @@ import styles from './DownloadButtons.module.css';
 
 interface DownloadButtonsProps {
     content: string;
+    title?: string;
 }
 
-export default function DownloadButtons({ content }: DownloadButtonsProps) {
+export default function DownloadButtons({ content, title }: DownloadButtonsProps) {
     const [pdfLoading, setPdfLoading] = useState(false);
+
+    const filename = title || 'README';
 
     const handleDownloadReadme = () => {
         const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'README.md';
+        a.download = `${filename}.md`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -25,66 +28,88 @@ export default function DownloadButtons({ content }: DownloadButtonsProps) {
     const handleDownloadPdf = async () => {
         setPdfLoading(true);
         try {
-            // Render the preview content to a printable window and use browser's PDF engine
-            const printWindow = window.open('', '_blank');
-            if (!printWindow) {
-                alert('Please allow popups to download PDF.');
-                return;
-            }
+            const html2pdf = (await import('html2pdf.js')).default;
 
-            // Get the rendered markdown HTML from the page
             const previewEl = document.querySelector('[data-preview-content]');
-            const htmlContent = previewEl ? previewEl.innerHTML : '';
+            if (!previewEl) return;
 
-            // Get computed styles for the preview
-            const stylesheets = Array.from(document.styleSheets);
-            let cssText = '';
-            for (const sheet of stylesheets) {
-                try {
-                    const rules = Array.from(sheet.cssRules);
-                    cssText += rules.map(r => r.cssText).join('\n');
-                } catch {
-                    // Skip cross-origin stylesheets
+            // Clone the element so we can style it for PDF without affecting the page
+            const clone = previewEl.cloneNode(true) as HTMLElement;
+
+            // Apply light-mode styles for clean PDF output
+            clone.style.cssText = `
+                background: white;
+                color: #1f2328;
+                padding: 32px;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                line-height: 1.6;
+                max-width: 800px;
+            `;
+
+            // Override dark theme colors in the clone
+            const allEls = clone.querySelectorAll('*');
+            allEls.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                const computed = window.getComputedStyle(el);
+                // Reset backgrounds that are dark-themed
+                if (computed.backgroundColor && computed.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+                    const bg = computed.backgroundColor;
+                    if (bg.includes('13, 17, 23') || bg.includes('1, 4, 9') || bg.includes('22, 27, 34')) {
+                        htmlEl.style.backgroundColor = '#f6f8fa';
+                    }
                 }
-            }
+                // Reset text colors that are light-on-dark
+                if (computed.color) {
+                    const c = computed.color;
+                    if (c.includes('201, 209, 217') || c.includes('139, 148, 158')) {
+                        htmlEl.style.color = '#1f2328';
+                    }
+                }
+                // Fix border colors
+                if (computed.borderColor && computed.borderColor.includes('48, 54, 61')) {
+                    htmlEl.style.borderColor = '#d0d7de';
+                }
+            });
 
-            printWindow.document.write(`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>README</title>
-<style>
-${cssText}
-body {
-    background: #0d1117;
-    color: #c9d1d9;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.6;
-    padding: 2rem;
-    max-width: 800px;
-    margin: 0 auto;
-}
-@media print {
-    body { background: white; color: #1f2328; }
-    pre, code { background: #f6f8fa !important; color: #1f2328 !important; }
-    a { color: #0969da; }
-    table tr:nth-child(2n) { background: #f6f8fa; }
-    table th, table td { border-color: #d0d7de; }
-    h1, h2 { border-color: #d0d7de; }
-    blockquote { color: #656d76; border-color: #d0d7de; }
-}
-</style>
-</head>
-<body>${htmlContent}</body>
-</html>`);
-            printWindow.document.close();
+            // Fix headings border
+            clone.querySelectorAll('h1, h2').forEach((el) => {
+                (el as HTMLElement).style.borderBottomColor = '#d0d7de';
+            });
 
-            // Give styles time to apply, then trigger print dialog (Save as PDF)
-            setTimeout(() => {
-                printWindow.print();
-                // Close the window after print dialog
-                printWindow.onafterprint = () => printWindow.close();
-            }, 300);
+            // Fix code blocks
+            clone.querySelectorAll('pre').forEach((el) => {
+                (el as HTMLElement).style.backgroundColor = '#f6f8fa';
+                (el as HTMLElement).style.color = '#1f2328';
+            });
+
+            clone.querySelectorAll('code').forEach((el) => {
+                const parent = el.parentElement;
+                if (parent && parent.tagName !== 'PRE') {
+                    (el as HTMLElement).style.backgroundColor = '#eff1f3';
+                    (el as HTMLElement).style.color = '#1f2328';
+                }
+            });
+
+            // Fix links
+            clone.querySelectorAll('a').forEach((el) => {
+                (el as HTMLElement).style.color = '#0969da';
+            });
+
+            // Fix blockquotes
+            clone.querySelectorAll('blockquote').forEach((el) => {
+                (el as HTMLElement).style.color = '#656d76';
+                (el as HTMLElement).style.borderLeftColor = '#d0d7de';
+            });
+
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: `${filename}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
+            };
+
+            await html2pdf().set(opt).from(clone).save();
         } catch (error) {
             console.error('PDF generation failed:', error);
         } finally {
@@ -96,7 +121,7 @@ body {
         <div className={styles.downloadBar}>
             <button className={styles.downloadButton} onClick={handleDownloadReadme}>
                 <FileText size={16} />
-                <span>Download README.md</span>
+                <span>Download .md</span>
             </button>
             <button
                 className={styles.downloadButton}
