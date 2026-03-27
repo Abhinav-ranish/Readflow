@@ -4,7 +4,7 @@ Readflow is a web-based markdown editor. Use this API to programmatically create
 
 ## API Endpoint
 
-`POST https://readflow.vercel.app/api/share`
+`POST https://readflow.aranish.uk/api/share`
 
 ### Request
 
@@ -25,7 +25,7 @@ Readflow is a web-based markdown editor. Use this API to programmatically create
 ```json
 {
   "id": "abc123xyz",
-  "url": "https://readflow.vercel.app/s/abc123xyz"
+  "url": "https://readflow.aranish.uk/s/abc123xyz"
 }
 ```
 
@@ -42,13 +42,13 @@ Readflow is a web-based markdown editor. Use this API to programmatically create
 When a user asks you to "share this on Readflow", "put this readme on Readflow", "create a Readflow link", or similar:
 
 1. Gather the markdown content (from a file, generated output, or user input)
-2. Send a POST request to `https://readflow.vercel.app/api/share` with JSON body `{"content": "<markdown>", "title": "<optional title>"}`
+2. Send a POST request to `https://readflow.aranish.uk/api/share` with JSON body `{"content": "<markdown>", "title": "<optional title>"}`
 3. Return the `url` field from the response to the user
 
 ### curl
 
 ```bash
-curl -s -X POST https://readflow.vercel.app/api/share \
+curl -s -X POST https://readflow.aranish.uk/api/share \
   -H "Content-Type: application/json" \
   -d '{"content": "# Hello World\n\nThis is a test.", "title": "Hello World"}' \
   | jq -r '.url'
@@ -58,7 +58,7 @@ curl -s -X POST https://readflow.vercel.app/api/share \
 
 ```bash
 jq -Rs '{content: ., title: "My README"}' README.md \
-  | curl -s -X POST https://readflow.vercel.app/api/share \
+  | curl -s -X POST https://readflow.aranish.uk/api/share \
     -H "Content-Type: application/json" -d @- \
   | jq -r '.url'
 ```
@@ -68,7 +68,7 @@ jq -Rs '{content: ., title: "My README"}' README.md \
 ```python
 import requests
 
-resp = requests.post("https://readflow.vercel.app/api/share", json={
+resp = requests.post("https://readflow.aranish.uk/api/share", json={
     "content": markdown_string,
     "title": "My Document"
 })
@@ -78,7 +78,7 @@ print(resp.json()["url"])
 ### Node.js / fetch
 
 ```typescript
-const resp = await fetch("https://readflow.vercel.app/api/share", {
+const resp = await fetch("https://readflow.aranish.uk/api/share", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ content: markdownString, title: "My Doc" }),

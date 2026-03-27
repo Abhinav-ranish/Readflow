@@ -36,45 +36,95 @@ export default async function OGImage({
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    background: '#0d1117',
+                    background: 'linear-gradient(145deg, #0d1117 0%, #161b22 50%, #0d1117 100%)',
                     padding: '60px',
                     fontFamily: 'system-ui, -apple-system, sans-serif',
+                    position: 'relative',
+                    overflow: 'hidden',
                 }}
             >
+                {/* Decorative gradient orbs */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: '-120px',
+                        right: '-80px',
+                        width: '400px',
+                        height: '400px',
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(88,166,255,0.08) 0%, transparent 70%)',
+                        display: 'flex',
+                    }}
+                />
+                <div
+                    style={{
+                        position: 'absolute',
+                        bottom: '-100px',
+                        left: '-60px',
+                        width: '300px',
+                        height: '300px',
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(136,98,234,0.06) 0%, transparent 70%)',
+                        display: 'flex',
+                    }}
+                />
+
                 {/* Header */}
                 <div
                     style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '16px',
+                        justifyContent: 'space-between',
                         marginBottom: '40px',
                     }}
                 >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        {/* Stylized icon */}
+                        <div
+                            style={{
+                                width: '52px',
+                                height: '52px',
+                                borderRadius: '14px',
+                                background: 'linear-gradient(135deg, #58a6ff 0%, #8862ea 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '28px',
+                                fontWeight: 800,
+                                color: '#ffffff',
+                                boxShadow: '0 4px 12px rgba(88,166,255,0.3)',
+                            }}
+                        >
+                            R
+                        </div>
+                        <span
+                            style={{
+                                fontSize: '26px',
+                                color: '#c9d1d9',
+                                fontWeight: 600,
+                                letterSpacing: '-0.5px',
+                            }}
+                        >
+                            Readflow
+                        </span>
+                    </div>
+
+                    {/* AI badge */}
                     <div
                         style={{
-                            width: '48px',
-                            height: '48px',
-                            borderRadius: '10px',
-                            background: '#c9d1d9',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '28px',
-                            fontWeight: 800,
-                            color: '#0d1117',
+                            gap: '6px',
+                            background: 'rgba(136,98,234,0.12)',
+                            border: '1px solid rgba(136,98,234,0.25)',
+                            borderRadius: '50px',
+                            padding: '6px 14px',
+                            fontSize: '15px',
+                            color: '#b88aff',
                         }}
                     >
-                        R
+                        AI Agent Ready
                     </div>
-                    <span
-                        style={{
-                            fontSize: '28px',
-                            color: '#8b949e',
-                            fontWeight: 400,
-                        }}
-                    >
-                        Readflow
-                    </span>
                 </div>
 
                 {/* Title */}
@@ -82,13 +132,14 @@ export default async function OGImage({
                     style={{
                         fontSize: '52px',
                         fontWeight: 700,
-                        color: '#c9d1d9',
-                        lineHeight: 1.2,
-                        marginBottom: '24px',
+                        color: '#f0f6fc',
+                        lineHeight: 1.15,
+                        marginBottom: '20px',
                         overflow: 'hidden',
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',
+                        letterSpacing: '-1px',
                     }}
                 >
                     {title}
@@ -98,9 +149,9 @@ export default async function OGImage({
                 <div
                     style={{
                         flex: 1,
-                        fontSize: '24px',
+                        fontSize: '22px',
                         color: '#8b949e',
-                        lineHeight: 1.5,
+                        lineHeight: 1.55,
                         overflow: 'hidden',
                         display: '-webkit-box',
                         WebkitLineClamp: 4,
@@ -116,24 +167,30 @@ export default async function OGImage({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        borderTop: '1px solid #30363d',
+                        borderTop: '1px solid rgba(48,54,61,0.8)',
                         paddingTop: '24px',
-                        marginTop: '20px',
+                        marginTop: '16px',
                     }}
                 >
-                    <span style={{ fontSize: '20px', color: '#484f58' }}>
-                        readflow.vercel.app
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                        <span style={{ fontSize: '18px', color: '#484f58' }}>
+                            readflow.aranish.uk
+                        </span>
+                        <span style={{ fontSize: '14px', color: '#30363d' }}>|</span>
+                        <span style={{ fontSize: '16px', color: '#484f58' }}>
+                            Markdown + PDF + API
+                        </span>
+                    </div>
                     <div
                         style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            background: 'rgba(56, 139, 253, 0.1)',
-                            border: '1px solid rgba(88, 166, 255, 0.2)',
+                            background: 'rgba(56,139,253,0.1)',
+                            border: '1px solid rgba(88,166,255,0.2)',
                             borderRadius: '50px',
                             padding: '6px 16px',
-                            fontSize: '18px',
+                            fontSize: '16px',
                             color: '#58a6ff',
                         }}
                     >
