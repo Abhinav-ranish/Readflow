@@ -30,6 +30,7 @@ export default function Home() {
   const [isSharing, setIsSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   // Load from LocalStorage
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function Home() {
 
   const handleShare = async () => {
     setIsSharing(true);
+    setShareError(null);
     try {
       const res = await fetch('/api/share', {
         method: 'POST',
@@ -54,14 +56,19 @@ export default function Home() {
         body: JSON.stringify({ content: markdown }),
       });
 
-      if (!res.ok) throw new Error('Failed to share');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to share');
+      }
 
       const data = await res.json();
       setShareUrl(data.url);
       setIsModalOpen(true);
     } catch (error) {
       console.error(error);
-      alert('Error sharing document.');
+      const message = error instanceof Error ? error.message : 'Failed to share';
+      setShareError(message);
+      setTimeout(() => setShareError(null), 4000);
     } finally {
       setIsSharing(false);
     }
@@ -80,7 +87,7 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
-      <TopBar onShare={handleShare} isSharing={isSharing} />
+      <TopBar onShare={handleShare} isSharing={isSharing} error={shareError} />
 
       <div className={styles.workspace}>
         {/* Editor Pane */}
