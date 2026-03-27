@@ -26,7 +26,7 @@ export default async function SharedReadmePage({ params }: Props) {
                 <div className={styles.branding}>
                     <Link href="/" className={styles.logoLink}>
                         <span className={styles.logoIcon}>R</span>
-                        <span className={styles.logoText}>Readex</span>
+                        <span className={styles.logoText}>Readflow</span>
                     </Link>
                     <div className={styles.separator}>/</div>
                     <div className={styles.badge}>
