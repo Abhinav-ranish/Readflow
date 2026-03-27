@@ -7,9 +7,9 @@
   },
   "api": {
     "type": "openapi",
-    "url": "https://readflow.vercel.app/.well-known/openapi.json"
+    "url": "https://readflow.aranish.uk/.well-known/openapi.json"
   },
-  "logo_url": "https://readflow.vercel.app/icon.svg",
+  "logo_url": "https://readflow.aranish.uk/icon.svg",
   "contact_email": "",
   "legal_info_url": ""
 }
