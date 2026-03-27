@@ -13,7 +13,7 @@ interface PreviewProps {
 
 export default function Preview({ content, className }: PreviewProps) {
     return (
-        <div className={`${styles.previewContainer} ${className}`}>
+        <div className={`${styles.previewContainer}${className ? ` ${className}` : ''}`}>
             <div className={styles.markdownBody}>
                 <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
