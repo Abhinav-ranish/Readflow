@@ -4,11 +4,14 @@ import { db } from '@/lib/db';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { content } = body;
+        const { content, title } = body;
 
         if (!content || typeof content !== 'string') {
             return NextResponse.json({ error: 'Invalid content' }, { status: 400 });
         }
+
+        // Sanitize optional title
+        const cleanTitle = (typeof title === 'string' && title.trim()) ? title.trim().slice(0, 100) : undefined;
 
         // Rate Limiting
         const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
@@ -18,7 +21,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 });
         }
 
-        const id = await db.saveReadme(content, ip);
+        const id = await db.saveReadme(content, ip, cleanTitle);
 
         // Construct absolute URL
         const url = new URL(request.url);
@@ -26,7 +29,7 @@ export async function POST(request: NextRequest) {
         const shareUrl = `${origin}/s/${id}`;
 
         return NextResponse.json({ id, url: shareUrl });
-    } catch (error: any) {
+    } catch (error) {
         console.error('Share Error:', error);
         return NextResponse.json({ error: 'Failed to share' }, { status: 500 });
     }
