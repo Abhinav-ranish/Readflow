@@ -1,9 +1,10 @@
 'use client';
-import React from 'react';
+import React, { useMemo } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { githubDark } from '@uiw/codemirror-theme-github';
+import styles from './Editor.module.css';
 
 interface EditorProps {
     value: string;
@@ -11,23 +12,28 @@ interface EditorProps {
     className?: string;
 }
 
+const BASIC_SETUP = {
+    lineNumbers: false,
+    foldGutter: false,
+    highlightActiveLine: false,
+};
+
 export default function Editor({ value, onChange, className }: EditorProps) {
+    const extensions = useMemo(
+        () => [markdown({ base: markdownLanguage, codeLanguages: languages })],
+        []
+    );
+
     return (
-        <div className={className} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div className={`${styles.editorWrapper}${className ? ` ${className}` : ''}`}>
             <CodeMirror
                 value={value}
                 height="100%"
                 theme={githubDark}
-                extensions={[
-                    markdown({ base: markdownLanguage, codeLanguages: languages })
-                ]}
+                extensions={extensions}
                 onChange={onChange}
-                style={{ flex: 1, overflow: 'hidden', fontSize: '15px' }}
-                basicSetup={{
-                    lineNumbers: false,
-                    foldGutter: false,
-                    highlightActiveLine: false,
-                }}
+                className={styles.codeMirror}
+                basicSetup={BASIC_SETUP}
             />
         </div>
     );
