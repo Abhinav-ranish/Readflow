@@ -28,6 +28,10 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
     line-height: 1.25;
     color: #1f2328;
+    word-spacing: 0.1em;
+    letter-spacing: normal;
+    white-space: pre-wrap;
+    page-break-after: avoid;
 }
 h1 { font-size: 2em; padding-bottom: 0.3em; border-bottom: 1px solid #d1d9e0; }
 h2 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid #d1d9e0; }
@@ -56,12 +60,17 @@ pre {
     border-radius: 6px;
     margin-bottom: 16px;
     border: 1px solid #d1d9e0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    page-break-inside: avoid;
 }
 pre code {
     background: none;
     padding: 0;
     border-radius: 0;
     font-size: 100%;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 blockquote {
     padding: 0 1em;
@@ -93,6 +102,9 @@ hr {
 }
 img { max-width: 100%; }
 del { text-decoration: line-through; color: #656d76; }
+li { page-break-inside: avoid; }
+blockquote { page-break-inside: avoid; }
+tr { page-break-inside: avoid; }
 `;
 
 export default function DownloadButtons({ content, title }: DownloadButtonsProps) {
@@ -139,6 +151,18 @@ export default function DownloadButtons({ content, title }: DownloadButtonsProps
             `;
 
             // Must be in DOM for html2canvas to measure, but hidden
+            // Fix html2canvas space-eating bug in headings:
+            // Replace regular spaces with non-breaking spaces in heading text nodes
+            container.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading) => {
+                const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT);
+                let node;
+                while ((node = walker.nextNode())) {
+                    if (node.textContent) {
+                        node.textContent = node.textContent.replace(/ /g, '\u00A0');
+                    }
+                }
+            });
+
             container.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;background:#ffffff;z-index:-1;';
             document.body.appendChild(container);
 
@@ -153,7 +177,7 @@ export default function DownloadButtons({ content, title }: DownloadButtonsProps
                     logging: false,
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+                pagebreak: { mode: ['css'], avoid: ['h1','h2','h3','h4','h5','h6','pre','blockquote','li','tr'] },
             };
 
             const target = container.querySelector('div') as HTMLElement;
