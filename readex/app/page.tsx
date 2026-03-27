@@ -70,7 +70,10 @@ export default function Home() {
   if (!isLoaded) {
     return (
       <main className={styles.main}>
-        <div className={styles.loading}>Loading...</div>
+        <div className={styles.loading}>
+          <div className={styles.spinner} />
+          Loading...
+        </div>
       </main>
     );
   }
