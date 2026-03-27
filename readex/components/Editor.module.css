@@ -1,0 +1,11 @@
+.editorWrapper {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.codeMirror {
+    flex: 1;
+    overflow: hidden;
+    font-size: 15px;
+}
