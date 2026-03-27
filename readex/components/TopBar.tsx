@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { Share2 } from 'lucide-react';
+import { Share2, Link2 } from 'lucide-react';
 import Link from 'next/link';
 import styles from './TopBar.module.css';
 
@@ -8,9 +8,11 @@ interface TopBarProps {
     onShare: () => void;
     isSharing: boolean;
     error?: string | null;
+    lastShareUrl?: string;
+    onShowLastLink?: () => void;
 }
 
-export default function TopBar({ onShare, isSharing, error }: TopBarProps) {
+export default function TopBar({ onShare, isSharing, error, lastShareUrl, onShowLastLink }: TopBarProps) {
     return (
         <header className={styles.header}>
             <Link href="/" className={styles.logo}>
@@ -19,6 +21,16 @@ export default function TopBar({ onShare, isSharing, error }: TopBarProps) {
             </Link>
             <div className={styles.actions}>
                 {error && <span className={styles.errorToast}>{error}</span>}
+                {lastShareUrl && onShowLastLink && (
+                    <button
+                        className={styles.lastLinkButton}
+                        onClick={onShowLastLink}
+                        title="View last shared link"
+                    >
+                        <Link2 size={16} />
+                        <span className={styles.lastLinkLabel}>Last link</span>
+                    </button>
+                )}
                 <button
                     className={styles.shareButton}
                     onClick={onShare}
