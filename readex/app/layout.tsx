@@ -25,7 +25,7 @@ const cabin = Cabin({
 });
 
 export const metadata: Metadata = {
-  title: "Readex | Shareable Markdown",
+  title: "Readflow | Shareable Markdown",
   description: "Write, preview, and share README files instantly.",
 };
 
