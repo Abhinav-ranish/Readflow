@@ -1,6 +1,6 @@
 # Readflow
 
-![Readflow Hero](/readex/public/readex.svg)
+![Readflow Hero](/readex/public/readflow.svg)
 
 **Readflow** is a modern, shareable Markdown editor built for speed and aesthetics. Write your documentation in a clean, split-pane environment and instantly share a read-only link with your team.
 
