@@ -1,11 +1,12 @@
 'use client';
-import React, { useEffect, useRef, useId } from 'react';
+import React, { useEffect, useRef, useId, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import type { Components } from 'react-markdown';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Maximize2 } from 'lucide-react';
 import styles from './Preview.module.css';
 import 'highlight.js/styles/github-dark.css';
 
@@ -53,11 +54,23 @@ const sanitizeSchema = {
     },
 };
 
-// Mermaid diagram component — renders lazily on mount
+const PAN_STEP = 80;
+const ZOOM_STEP = 0.25;
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 3;
+
+// Mermaid diagram component with pan/zoom controls
 function MermaidBlock({ chart }: { chart: string }) {
-    const containerRef = useRef<HTMLDivElement>(null);
+    const svgRef = useRef<HTMLDivElement>(null);
+    const viewportRef = useRef<HTMLDivElement>(null);
     const uniqueId = useId();
     const mermaidId = `mermaid-${uniqueId.replace(/:/g, '')}`;
+
+    const [zoom, setZoom] = useState(1);
+    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const [dragging, setDragging] = useState(false);
+    const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+    const [rendered, setRendered] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -83,17 +96,17 @@ function MermaidBlock({ chart }: { chart: string }) {
                 });
 
                 const { svg } = await mermaid.render(mermaidId, chart);
-                if (!cancelled && containerRef.current) {
-                    containerRef.current.innerHTML = svg;
+                if (!cancelled && svgRef.current) {
+                    svgRef.current.innerHTML = svg;
+                    setRendered(true);
                 }
             } catch {
-                // If mermaid fails to parse, fall back to showing the source
-                if (!cancelled && containerRef.current) {
+                if (!cancelled && svgRef.current) {
                     const pre = document.createElement('pre');
                     const code = document.createElement('code');
                     code.textContent = chart;
                     pre.appendChild(code);
-                    containerRef.current.appendChild(pre);
+                    svgRef.current.appendChild(pre);
                 }
             }
         })();
@@ -101,11 +114,124 @@ function MermaidBlock({ chart }: { chart: string }) {
         return () => { cancelled = true; };
     }, [chart, mermaidId]);
 
+    const handleZoomIn = useCallback(() => {
+        setZoom(z => Math.min(z + ZOOM_STEP, MAX_ZOOM));
+    }, []);
+
+    const handleZoomOut = useCallback(() => {
+        setZoom(z => Math.max(z - ZOOM_STEP, MIN_ZOOM));
+    }, []);
+
+    const handleReset = useCallback(() => {
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+    }, []);
+
+    const handleFitToView = useCallback(() => {
+        if (!svgRef.current || !viewportRef.current) return;
+        const svg = svgRef.current.querySelector('svg');
+        if (!svg) return;
+        const svgRect = svg.getBoundingClientRect();
+        const vpRect = viewportRef.current.getBoundingClientRect();
+        const scaleX = vpRect.width / svgRect.width;
+        const scaleY = vpRect.height / svgRect.height;
+        const fitZoom = Math.min(scaleX, scaleY, MAX_ZOOM) * zoom;
+        setZoom(Math.max(MIN_ZOOM, Math.min(fitZoom, MAX_ZOOM)));
+        setPan({ x: 0, y: 0 });
+    }, [zoom]);
+
+    // Mouse drag to pan
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        if (e.button !== 0) return;
+        setDragging(true);
+        dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+    }, [pan]);
+
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
+        if (!dragging) return;
+        const dx = e.clientX - dragStart.current.x;
+        const dy = e.clientY - dragStart.current.y;
+        setPan({ x: dragStart.current.panX + dx, y: dragStart.current.panY + dy });
+    }, [dragging]);
+
+    const handleMouseUp = useCallback(() => {
+        setDragging(false);
+    }, []);
+
+    // Scroll wheel zoom
+    const handleWheel = useCallback((e: React.WheelEvent) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+        setZoom(z => Math.max(MIN_ZOOM, Math.min(z + delta, MAX_ZOOM)));
+    }, []);
+
+    const panUp = useCallback(() => setPan(p => ({ ...p, y: p.y + PAN_STEP })), []);
+    const panDown = useCallback(() => setPan(p => ({ ...p, y: p.y - PAN_STEP })), []);
+    const panLeft = useCallback(() => setPan(p => ({ ...p, x: p.x + PAN_STEP })), []);
+    const panRight = useCallback(() => setPan(p => ({ ...p, x: p.x - PAN_STEP })), []);
+
     return (
-        <div
-            ref={containerRef}
-            className={styles.mermaidContainer}
-        />
+        <div className={styles.mermaidWrapper}>
+            <div
+                ref={viewportRef}
+                className={styles.mermaidViewport}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                onWheel={handleWheel}
+                style={{ cursor: dragging ? 'grabbing' : 'grab' }}
+            >
+                <div
+                    ref={svgRef}
+                    className={styles.mermaidContent}
+                    style={{
+                        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    }}
+                />
+            </div>
+
+            {rendered && (
+                <div className={styles.mermaidControls}>
+                    {/* Top row: up + zoom in */}
+                    <div className={styles.mermaidControlRow}>
+                        <button className={styles.mermaidBtn} onClick={panUp} title="Pan up">
+                            <ChevronUp size={14} />
+                        </button>
+                        <button className={styles.mermaidBtn} onClick={handleZoomIn} title="Zoom in">
+                            <ZoomIn size={14} />
+                        </button>
+                    </div>
+                    {/* Middle row: left + reset + right */}
+                    <div className={styles.mermaidControlRow}>
+                        <button className={styles.mermaidBtn} onClick={panLeft} title="Pan left">
+                            <ChevronLeft size={14} />
+                        </button>
+                        <button className={styles.mermaidBtn} onClick={handleReset} title="Reset view">
+                            <RotateCcw size={14} />
+                        </button>
+                        <button className={styles.mermaidBtn} onClick={panRight} title="Pan right">
+                            <ChevronRight size={14} />
+                        </button>
+                    </div>
+                    {/* Bottom row: down + zoom out */}
+                    <div className={styles.mermaidControlRow}>
+                        <button className={styles.mermaidBtn} onClick={panDown} title="Pan down">
+                            <ChevronDown size={14} />
+                        </button>
+                        <button className={styles.mermaidBtn} onClick={handleZoomOut} title="Zoom out">
+                            <ZoomOut size={14} />
+                        </button>
+                    </div>
+                    {/* Fit to view */}
+                    <div className={styles.mermaidControlRow}>
+                        <button className={styles.mermaidBtn} onClick={handleFitToView} title="Fit to view">
+                            <Maximize2 size={14} />
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
 
