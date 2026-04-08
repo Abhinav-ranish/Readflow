@@ -1,9 +1,8 @@
 import React from 'react';
 import { db } from '@/lib/db';
 import Preview from '@/components/Preview';
-import DownloadButtons from '@/components/DownloadButtons';
 import ForkButton from '@/components/ForkButton';
-import ExportHtmlButton from '@/components/ExportHtmlButton';
+import DownloadMenu from '@/components/DownloadMenu';
 import PoweredByFooter from '@/components/PoweredByFooter';
 import styles from './page.module.css';
 import { notFound } from 'next/navigation';
@@ -118,8 +117,7 @@ export default async function SharedReadmePage({ params }: Props) {
                 </div>
                 <div className={styles.actions}>
                     <ForkButton content={content} />
-                    <ExportHtmlButton content={content} title={title} />
-                    <DownloadButtons content={content} title={title} />
+                    <DownloadMenu content={content} title={title} />
                     <Link href="/" className={styles.createLink}>
                         Create New
                     </Link>
