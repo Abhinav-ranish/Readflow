@@ -13,15 +13,32 @@ interface Props {
 }
 
 function extractPlainText(markdown: string): string {
-    return markdown
-        .replace(/^#{1,6}\s+/gm, '')       // headings
-        .replace(/[*_~`>]/g, '')            // bold, italic, strikethrough, code, blockquote
-        .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1') // links/images
-        .replace(/```[\s\S]*?```/g, '')     // code blocks
-        .replace(/\n{2,}/g, ' ')            // collapse newlines
-        .replace(/\n/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+    const lines = markdown.split('\n');
+    const parts: string[] = [];
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === '---') continue;
+        if (/^```/.test(trimmed)) continue;
+        // Skip headings for description — the title already covers it
+        if (/^#{1,6}\s+/.test(trimmed)) continue;
+
+        // Clean metadata lines: **Key:** Value → Key: Value
+        const metaMatch = trimmed.match(/^\*\*([^*]+?):\*\*\s*(.+)/);
+        if (metaMatch) {
+            parts.push(`${metaMatch[1].trim()}: ${metaMatch[2].replace(/[*_~`]/g, '').trim()}`);
+            continue;
+        }
+
+        // Clean regular lines
+        const cleaned = trimmed
+            .replace(/[*_~`>]/g, '')
+            .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+            .trim();
+        if (cleaned) parts.push(cleaned);
+    }
+
+    return parts.join(' · ');
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
