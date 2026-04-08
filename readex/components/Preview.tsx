@@ -57,8 +57,25 @@ const sanitizeSchema = {
 
 const PAN_STEP = 80;
 const ZOOM_STEP = 0.25;
-const MIN_ZOOM = 0.25;
-const MAX_ZOOM = 3;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 5;
+const FIT_PADDING = 32; // px padding when fitting to view
+
+// Get intrinsic (un-transformed) size of the SVG
+function getSvgIntrinsicSize(svg: SVGSVGElement): { width: number; height: number } | null {
+    // Try the viewBox first — most reliable
+    const vb = svg.viewBox?.baseVal;
+    if (vb && vb.width > 0 && vb.height > 0) {
+        return { width: vb.width, height: vb.height };
+    }
+    // Fall back to width/height attributes
+    const w = svg.getAttribute('width');
+    const h = svg.getAttribute('height');
+    if (w && h) {
+        return { width: parseFloat(w), height: parseFloat(h) };
+    }
+    return null;
+}
 
 // Mermaid diagram component with pan/zoom controls
 function MermaidBlock({ chart }: { chart: string }) {
@@ -72,6 +89,22 @@ function MermaidBlock({ chart }: { chart: string }) {
     const [dragging, setDragging] = useState(false);
     const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
     const [rendered, setRendered] = useState(false);
+    // Store the initial fit zoom so "reset" goes back to fitted view
+    const initialZoom = useRef(1);
+
+    // Compute the zoom needed to fit the SVG inside the viewport
+    const computeFitZoom = useCallback(() => {
+        if (!svgRef.current || !viewportRef.current) return 1;
+        const svg = svgRef.current.querySelector('svg');
+        if (!svg) return 1;
+        const intrinsic = getSvgIntrinsicSize(svg as SVGSVGElement);
+        if (!intrinsic) return 1;
+        const vpRect = viewportRef.current.getBoundingClientRect();
+        const availW = vpRect.width - FIT_PADDING * 2;
+        const availH = vpRect.height - FIT_PADDING * 2;
+        const fit = Math.min(availW / intrinsic.width, availH / intrinsic.height, MAX_ZOOM);
+        return Math.max(MIN_ZOOM, fit);
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -99,6 +132,13 @@ function MermaidBlock({ chart }: { chart: string }) {
                 const { svg } = await mermaid.render(mermaidId, chart);
                 if (!cancelled && svgRef.current) {
                     svgRef.current.innerHTML = svg;
+
+                    // Remove max-width constraints mermaid puts on the SVG so we control sizing
+                    const svgEl = svgRef.current.querySelector('svg');
+                    if (svgEl) {
+                        svgEl.style.maxWidth = 'none';
+                    }
+
                     setRendered(true);
                 }
             } catch {
@@ -115,6 +155,19 @@ function MermaidBlock({ chart }: { chart: string }) {
         return () => { cancelled = true; };
     }, [chart, mermaidId]);
 
+    // Auto-fit once rendered
+    useEffect(() => {
+        if (!rendered) return;
+        // Small delay to let the DOM settle
+        const raf = requestAnimationFrame(() => {
+            const fit = computeFitZoom();
+            initialZoom.current = fit;
+            setZoom(fit);
+            setPan({ x: 0, y: 0 });
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [rendered, computeFitZoom]);
+
     const handleZoomIn = useCallback(() => {
         setZoom(z => Math.min(z + ZOOM_STEP, MAX_ZOOM));
     }, []);
@@ -124,22 +177,15 @@ function MermaidBlock({ chart }: { chart: string }) {
     }, []);
 
     const handleReset = useCallback(() => {
-        setZoom(1);
+        setZoom(initialZoom.current);
         setPan({ x: 0, y: 0 });
     }, []);
 
     const handleFitToView = useCallback(() => {
-        if (!svgRef.current || !viewportRef.current) return;
-        const svg = svgRef.current.querySelector('svg');
-        if (!svg) return;
-        const svgRect = svg.getBoundingClientRect();
-        const vpRect = viewportRef.current.getBoundingClientRect();
-        const scaleX = vpRect.width / svgRect.width;
-        const scaleY = vpRect.height / svgRect.height;
-        const fitZoom = Math.min(scaleX, scaleY, MAX_ZOOM) * zoom;
-        setZoom(Math.max(MIN_ZOOM, Math.min(fitZoom, MAX_ZOOM)));
+        const fit = computeFitZoom();
+        setZoom(fit);
         setPan({ x: 0, y: 0 });
-    }, [zoom]);
+    }, [computeFitZoom]);
 
     // Mouse drag to pan
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
