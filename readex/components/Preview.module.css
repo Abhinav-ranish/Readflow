@@ -131,18 +131,74 @@
 }
 
 /* Mermaid diagrams */
-.mermaidContainer {
+.mermaidWrapper {
+    position: relative;
     margin: 16px 0;
-    padding: 16px;
-    background-color: var(--bg-tertiary);
     border-radius: 6px;
-    overflow-x: auto;
-    text-align: center;
+    background-color: var(--bg-tertiary);
+    overflow: hidden;
 }
 
-.mermaidContainer svg {
-    max-width: 100%;
-    height: auto;
+.mermaidViewport {
+    width: 100%;
+    height: 360px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.mermaidContent {
+    transform-origin: center center;
+    transition: transform 0.15s ease;
+    display: inline-block;
+}
+
+.mermaidContent svg {
+    display: block;
+    max-width: none;
+}
+
+/* Control panel — bottom-right cluster matching screenshot layout */
+.mermaidControls {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 2;
+}
+
+.mermaidControlRow {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+}
+
+.mermaidBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    background-color: var(--bg-secondary, #2d333b);
+    color: var(--fg-secondary, #768390);
+    cursor: pointer;
+    padding: 0;
+    transition: background-color 0.12s, color 0.12s;
+}
+
+.mermaidBtn:hover {
+    background-color: var(--bg-tertiary, #373e47);
+    color: var(--fg-primary, #adbac7);
+}
+
+.mermaidBtn:active {
+    background-color: var(--bg-primary, #1c2128);
 }
 
 /* Details / Summary (collapsible sections) */
