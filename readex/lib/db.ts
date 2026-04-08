@@ -6,6 +6,7 @@ import path from 'path';
 export interface ReadmeEntry {
     content: string;
     title?: string;
+    createdAt?: number;
 }
 
 interface DBAdapter {
@@ -87,7 +88,11 @@ const localAdapter: DBAdapter = {
         // Handle both old string format and new obj format
         const content = (entry.content as string) || (typeof entry === 'string' ? entry : null);
         if (!content) return null;
-        return { content, title: (entry.title as string) || undefined };
+        return {
+            content,
+            title: (entry.title as string) || undefined,
+            createdAt: (entry.createdAt as number) || undefined,
+        };
     }
 };
 
@@ -190,11 +195,12 @@ const cloudflareAdapter: DBAdapter = {
 
     async getReadme(id: string): Promise<ReadmeEntry | null> {
         try {
-            const results = await queryD1(`SELECT content, title FROM readmes WHERE id = ? LIMIT 1`, [id]);
+            const results = await queryD1(`SELECT content, title, created_at FROM readmes WHERE id = ? LIMIT 1`, [id]);
             if (results.length > 0) {
                 return {
                     content: results[0].content as string,
                     title: (results[0].title as string) || undefined,
+                    createdAt: (results[0].created_at as number) || undefined,
                 };
             }
         } catch (error: unknown) {

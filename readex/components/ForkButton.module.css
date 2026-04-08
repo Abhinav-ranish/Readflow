@@ -1,0 +1,40 @@
+.forkButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background-color: var(--bg-tertiary);
+    color: var(--fg-primary);
+    padding: 0.45rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid var(--border-subtle);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    font-family: var(--font-action);
+    white-space: nowrap;
+}
+
+.forkButton:hover:not(:disabled) {
+    background-color: var(--border-subtle);
+    border-color: var(--fg-secondary);
+    color: #ffffff;
+}
+
+.forkButton:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    color: var(--success);
+    border-color: var(--success);
+}
+
+@media (max-width: 480px) {
+    .forkButton {
+        padding: 0.4rem 0.65rem;
+        font-size: 0.8rem;
+    }
+
+    .forkButton span {
+        display: none;
+    }
+}

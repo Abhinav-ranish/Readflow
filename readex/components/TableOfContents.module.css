@@ -1,0 +1,104 @@
+.tocToggle {
+    position: fixed;
+    bottom: 80px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background-color: var(--bg-tertiary);
+    color: var(--fg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    cursor: pointer;
+    z-index: 50;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.tocToggle:hover {
+    background-color: var(--border-subtle);
+    color: var(--fg-primary);
+}
+
+.tocPanel {
+    position: fixed;
+    bottom: 130px;
+    right: 24px;
+    width: 260px;
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 12px 0;
+    z-index: 50;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tocTitle {
+    padding: 0 16px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-muted);
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 4px;
+}
+
+.tocList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.tocItem {
+    padding: 0;
+}
+
+.tocLink {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 5px 16px;
+    font-size: 0.82rem;
+    color: var(--fg-secondary);
+    transition: all 0.15s;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tocLink:hover {
+    color: var(--accent-primary);
+    background-color: rgba(88, 166, 255, 0.06);
+}
+
+@media (max-width: 768px) {
+    .tocToggle {
+        bottom: 80px;
+        right: 16px;
+    }
+
+    .tocPanel {
+        right: 16px;
+        bottom: 130px;
+        width: 240px;
+        max-height: 300px;
+    }
+}
