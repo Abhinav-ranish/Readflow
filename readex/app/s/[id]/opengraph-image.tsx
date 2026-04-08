@@ -5,16 +5,63 @@ export const alt = 'Readflow Document';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-function extractPreview(markdown: string): string {
-    return markdown
-        .replace(/^#{1,6}\s+/gm, '')
-        .replace(/[*_~`>]/g, '')
-        .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-        .replace(/```[\s\S]*?```/g, '')
-        .replace(/\n{2,}/g, '\n')
-        .replace(/\s+/g, ' ')
+// Extract structured metadata lines (e.g. **Key:** Value) from the top of the doc
+function extractMetadata(markdown: string): { title: string; meta: string[]; body: string } {
+    const lines = markdown.split('\n');
+    let title = '';
+    const meta: string[] = [];
+    let bodyStart = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || line === '---') {
+            // Skip blank lines and horizontal rules at the top
+            bodyStart = i + 1;
+            continue;
+        }
+
+        // Heading line — use as title if we don't have one
+        const headingMatch = line.match(/^#{1,3}\s+(.+)/);
+        if (headingMatch && !title) {
+            title = headingMatch[1].replace(/[*_~`]/g, '');
+            bodyStart = i + 1;
+            continue;
+        }
+
+        // Metadata line: **Key:** Value or **Key**: Value
+        const metaMatch = line.match(/^\*\*([^*]+?):\*\*\s*(.+)/);
+        if (metaMatch) {
+            meta.push(`${metaMatch[1].trim()}: ${metaMatch[2].replace(/[*_~`]/g, '').trim()}`);
+            bodyStart = i + 1;
+            continue;
+        }
+
+        // If we hit a non-meta, non-heading, non-blank line, stop scanning
+        if (meta.length > 0 || title) {
+            bodyStart = i;
+            break;
+        }
+
+        // First real content line — stop
+        bodyStart = i;
+        break;
+    }
+
+    // Extract a clean body snippet from remaining content
+    const body = lines
+        .slice(bodyStart)
+        .join('\n')
+        .replace(/```[\s\S]*?```/g, '')         // code blocks
+        .replace(/^#{1,6}\s+/gm, '')            // headings
+        .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1') // links/images
+        .replace(/[*_~`>]/g, '')                 // formatting
+        .replace(/\n{2,}/g, '\n')               // collapse blank lines
         .trim()
-        .slice(0, 280);
+        .split('\n')[0]                          // first meaningful paragraph line
+        ?.trim()
+        .slice(0, 200) || '';
+
+    return { title, meta, body };
 }
 
 export default async function OGImage({
@@ -25,8 +72,10 @@ export default async function OGImage({
     const { id } = await params;
     const entry = await db.getReadme(id);
 
-    const title = entry?.title || 'Shared Document';
-    const preview = entry ? extractPreview(entry.content) : '';
+    const parsed = entry ? extractMetadata(entry.content) : null;
+    const title = entry?.title || parsed?.title || 'Shared Document';
+    const metaLines = parsed?.meta || [];
+    const bodyPreview = parsed?.body || '';
 
     return new ImageResponse(
         (
@@ -75,11 +124,10 @@ export default async function OGImage({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        marginBottom: '40px',
+                        marginBottom: '32px',
                     }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        {/* Stylized icon */}
                         <div
                             style={{
                                 width: '52px',
@@ -109,7 +157,6 @@ export default async function OGImage({
                         </span>
                     </div>
 
-                    {/* AI badge */}
                     <div
                         style={{
                             display: 'flex',
@@ -130,11 +177,11 @@ export default async function OGImage({
                 {/* Title */}
                 <div
                     style={{
-                        fontSize: '52px',
+                        fontSize: '48px',
                         fontWeight: 700,
                         color: '#f0f6fc',
                         lineHeight: 1.15,
-                        marginBottom: '20px',
+                        marginBottom: '24px',
                         overflow: 'hidden',
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
@@ -145,21 +192,58 @@ export default async function OGImage({
                     {title}
                 </div>
 
-                {/* Content preview */}
-                <div
-                    style={{
-                        flex: 1,
-                        fontSize: '22px',
-                        color: '#8b949e',
-                        lineHeight: 1.55,
-                        overflow: 'hidden',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 4,
-                        WebkitBoxOrient: 'vertical',
-                    }}
-                >
-                    {preview || 'A shared markdown document on Readflow.'}
-                </div>
+                {/* Metadata fields — each on its own line */}
+                {metaLines.length > 0 && (
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px',
+                            marginBottom: '16px',
+                        }}
+                    >
+                        {metaLines.slice(0, 5).map((line) => {
+                            const colonIdx = line.indexOf(':');
+                            const label = line.slice(0, colonIdx + 1);
+                            const value = line.slice(colonIdx + 1).trim();
+                            return (
+                                <div
+                                    key={line}
+                                    style={{
+                                        display: 'flex',
+                                        fontSize: '20px',
+                                        lineHeight: 1.4,
+                                    }}
+                                >
+                                    <span style={{ color: '#58a6ff', fontWeight: 600, marginRight: '6px' }}>
+                                        {label}
+                                    </span>
+                                    <span style={{ color: '#8b949e' }}>
+                                        {value}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Body preview — only if there's space */}
+                {bodyPreview && metaLines.length < 4 && (
+                    <div
+                        style={{
+                            flex: 1,
+                            fontSize: '20px',
+                            color: '#6e7681',
+                            lineHeight: 1.5,
+                            overflow: 'hidden',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                        }}
+                    >
+                        {bodyPreview}
+                    </div>
+                )}
 
                 {/* Footer bar */}
                 <div
@@ -169,7 +253,7 @@ export default async function OGImage({
                         justifyContent: 'space-between',
                         borderTop: '1px solid rgba(48,54,61,0.8)',
                         paddingTop: '24px',
-                        marginTop: '16px',
+                        marginTop: 'auto',
                     }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -185,7 +269,6 @@ export default async function OGImage({
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '8px',
                             background: 'rgba(56,139,253,0.1)',
                             border: '1px solid rgba(88,166,255,0.2)',
                             borderRadius: '50px',
