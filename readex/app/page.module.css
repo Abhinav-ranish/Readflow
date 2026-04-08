@@ -54,6 +54,13 @@
   background-color: var(--bg-primary);
 }
 
+/* Desktop layout: hide a pane when user picks editor-only or preview-only */
+@media (min-width: 769px) {
+  .hiddenOnDesktop {
+    display: none !important;
+  }
+}
+
 /* Mobile Visibility Handling */
 @media (max-width: 768px) {
   .workspace {

@@ -1,0 +1,38 @@
+.bar {
+    display: none;
+    align-items: center;
+    gap: 2px;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 2px;
+}
+
+/* Only show on desktop */
+@media (min-width: 769px) {
+    .bar {
+        display: flex;
+    }
+}
+
+.btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 26px;
+    border-radius: 4px;
+    color: var(--fg-muted);
+    transition: all 0.15s;
+    cursor: pointer;
+}
+
+.btn:hover {
+    color: var(--fg-primary);
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.btn.active {
+    color: var(--accent-primary);
+    background-color: rgba(88, 166, 255, 0.1);
+}

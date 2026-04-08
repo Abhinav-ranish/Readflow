@@ -4,9 +4,10 @@ import { useEffect } from 'react';
 interface KeyboardShortcutsProps {
     onShare: () => void;
     onToggleView: () => void;
+    onCycleLayout?: () => void;
 }
 
-export default function KeyboardShortcuts({ onShare, onToggleView }: KeyboardShortcutsProps) {
+export default function KeyboardShortcuts({ onShare, onToggleView, onCycleLayout }: KeyboardShortcutsProps) {
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             const isMod = e.metaKey || e.ctrlKey;
@@ -25,17 +26,22 @@ export default function KeyboardShortcuts({ onShare, onToggleView }: KeyboardSho
                 return;
             }
 
-            // Cmd+E → Toggle editor/preview
+            // Cmd+E → Cycle desktop layout (split → editor → preview → split)
+            // Falls back to mobile toggle on small screens
             if (e.key === 'e') {
                 e.preventDefault();
-                onToggleView();
+                if (onCycleLayout && window.innerWidth > 768) {
+                    onCycleLayout();
+                } else {
+                    onToggleView();
+                }
                 return;
             }
         };
 
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [onShare, onToggleView]);
+    }, [onShare, onToggleView, onCycleLayout]);
 
     return null;
 }
