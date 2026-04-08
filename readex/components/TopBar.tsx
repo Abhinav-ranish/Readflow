@@ -10,9 +10,11 @@ interface TopBarProps {
     error?: string | null;
     lastShareUrl?: string;
     onShowLastLink?: () => void;
+    templateSelector?: React.ReactNode;
+    layoutToggle?: React.ReactNode;
 }
 
-export default function TopBar({ onShare, isSharing, error, lastShareUrl, onShowLastLink }: TopBarProps) {
+export default function TopBar({ onShare, isSharing, error, lastShareUrl, onShowLastLink, templateSelector, layoutToggle }: TopBarProps) {
     return (
         <header className={styles.header}>
             <Link href="/" className={styles.logo}>
@@ -20,6 +22,8 @@ export default function TopBar({ onShare, isSharing, error, lastShareUrl, onShow
                 <span className={styles.logoText}>Readflow</span>
             </Link>
             <div className={styles.actions}>
+                {layoutToggle}
+                {templateSelector}
                 {error && <span className={styles.errorToast}>{error}</span>}
                 {lastShareUrl && onShowLastLink && (
                     <button
