@@ -1,19 +1,30 @@
 'use client';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Copy, Check, Share2 } from 'lucide-react';
+import { X, Copy, Check, Share2, Lock, Clock, ChevronDown } from 'lucide-react';
 import styles from './ShareModal.module.css';
 
 interface ShareModalProps {
     isOpen: boolean;
     onClose: () => void;
     url: string;
-    onShare: (title: string) => void;
+    onShare: (title: string, password?: string, expiresIn?: number) => void;
     isSharing: boolean;
 }
+
+const EXPIRY_OPTIONS = [
+    { label: 'Never', value: 0 },
+    { label: '1 hour', value: 3600 },
+    { label: '24 hours', value: 86400 },
+    { label: '7 days', value: 604800 },
+    { label: '30 days', value: 2592000 },
+];
 
 export default function ShareModal({ isOpen, onClose, url, onShare, isSharing }: ShareModalProps) {
     const [copied, setCopied] = useState(false);
     const [title, setTitle] = useState('');
+    const [password, setPassword] = useState('');
+    const [expiresIn, setExpiresIn] = useState(0);
+    const [showAdvanced, setShowAdvanced] = useState(false);
     const modalRef = useRef<HTMLDivElement>(null);
     const titleInputRef = useRef<HTMLInputElement>(null);
     const urlInputRef = useRef<HTMLInputElement>(null);
@@ -28,7 +39,6 @@ export default function ShareModal({ isOpen, onClose, url, onShare, isSharing }:
         if (isOpen) {
             document.addEventListener('keydown', handleKeyDown);
             document.body.style.overflow = 'hidden';
-            // Focus title input if no URL yet, otherwise focus URL
             setTimeout(() => {
                 if (hasUrl) {
                     urlInputRef.current?.select();
@@ -43,10 +53,12 @@ export default function ShareModal({ isOpen, onClose, url, onShare, isSharing }:
         };
     }, [isOpen, handleKeyDown, hasUrl]);
 
-    // Reset title when modal closes
     useEffect(() => {
         if (!isOpen) {
             setTitle('');
+            setPassword('');
+            setExpiresIn(0);
+            setShowAdvanced(false);
             setCopied(false);
         }
     }, [isOpen]);
@@ -65,15 +77,17 @@ export default function ShareModal({ isOpen, onClose, url, onShare, isSharing }:
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onShare(title.trim());
+        onShare(
+            title.trim(),
+            password.trim() || undefined,
+            expiresIn > 0 ? expiresIn : undefined,
+        );
     };
 
     return (
         <div
             className={styles.overlay}
-            onClick={(e) => {
-                if (e.target === e.currentTarget) onClose();
-            }}
+            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
             role="dialog"
             aria-modal="true"
             aria-labelledby="share-modal-title"
@@ -105,6 +119,52 @@ export default function ShareModal({ isOpen, onClose, url, onShare, isSharing }:
                                     aria-label="Document title"
                                 />
                             </div>
+
+                            <button
+                                type="button"
+                                className={styles.advancedToggle}
+                                onClick={() => setShowAdvanced(!showAdvanced)}
+                            >
+                                <ChevronDown
+                                    size={14}
+                                    style={{ transform: showAdvanced ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+                                />
+                                Advanced options
+                            </button>
+
+                            {showAdvanced && (
+                                <div className={styles.advancedPanel}>
+                                    <div className={styles.optionRow}>
+                                        <Lock size={14} className={styles.optionIcon} />
+                                        <div className={styles.optionContent}>
+                                            <label className={styles.optionLabel}>Password protect</label>
+                                            <input
+                                                type="password"
+                                                value={password}
+                                                onChange={e => setPassword(e.target.value)}
+                                                placeholder="Leave empty for no password"
+                                                className={styles.optionInput}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className={styles.optionRow}>
+                                        <Clock size={14} className={styles.optionIcon} />
+                                        <div className={styles.optionContent}>
+                                            <label className={styles.optionLabel}>Expiry</label>
+                                            <select
+                                                value={expiresIn}
+                                                onChange={e => setExpiresIn(Number(e.target.value))}
+                                                className={styles.optionSelect}
+                                            >
+                                                {EXPIRY_OPTIONS.map(o => (
+                                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <button
                                 type="submit"
                                 className={styles.shareSubmitButton}
