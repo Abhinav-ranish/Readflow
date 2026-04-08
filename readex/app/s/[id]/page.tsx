@@ -2,9 +2,12 @@ import React from 'react';
 import { db } from '@/lib/db';
 import Preview from '@/components/Preview';
 import DownloadButtons from '@/components/DownloadButtons';
+import ForkButton from '@/components/ForkButton';
+import ExportHtmlButton from '@/components/ExportHtmlButton';
+import PoweredByFooter from '@/components/PoweredByFooter';
 import styles from './page.module.css';
 import { notFound } from 'next/navigation';
-import { Lock } from 'lucide-react';
+import { Lock, Clock } from 'lucide-react';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 
@@ -85,7 +88,9 @@ export default async function SharedReadmePage({ params }: Props) {
         notFound();
     }
 
-    const { content, title } = entry;
+    const { content, title, createdAt } = entry;
+
+    const timeAgo = createdAt ? formatTimeAgo(createdAt) : null;
 
     return (
         <div className={styles.container}>
@@ -104,8 +109,16 @@ export default async function SharedReadmePage({ params }: Props) {
                             <span>Read Only</span>
                         </div>
                     )}
+                    {timeAgo && (
+                        <div className={styles.timeBadge}>
+                            <Clock size={12} />
+                            <span>{timeAgo}</span>
+                        </div>
+                    )}
                 </div>
                 <div className={styles.actions}>
+                    <ForkButton content={content} />
+                    <ExportHtmlButton content={content} title={title} />
                     <DownloadButtons content={content} title={title} />
                     <Link href="/" className={styles.createLink}>
                         Create New
@@ -117,6 +130,21 @@ export default async function SharedReadmePage({ params }: Props) {
                     <Preview content={content} />
                 </div>
             </main>
+            <PoweredByFooter />
         </div>
     );
+}
+
+function formatTimeAgo(timestamp: number): string {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months}mo ago`;
+    return `${Math.floor(months / 12)}y ago`;
 }

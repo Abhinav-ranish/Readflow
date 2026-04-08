@@ -7,6 +7,9 @@ import Editor from '@/components/Editor';
 import Preview from '@/components/Preview';
 import MobileToggle from '@/components/MobileToggle';
 import ShareModal from '@/components/ShareModal';
+import TableOfContents from '@/components/TableOfContents';
+import KeyboardShortcuts from '@/components/KeyboardShortcuts';
+import TemplateSelector from '@/components/TemplateSelector';
 import clsx from 'clsx';
 
 const DEFAULT_MARKDOWN = `# Welcome to Readflow
@@ -32,6 +35,10 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [lastShareUrl, setLastShareUrl] = useState<string>('');
+
+  const toggleView = React.useCallback(() => {
+    setViewMode(v => v === 'editor' ? 'preview' : 'editor');
+  }, []);
 
   // Load from LocalStorage
   useEffect(() => {
@@ -103,12 +110,15 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
+      <KeyboardShortcuts onShare={openShareModal} onToggleView={toggleView} />
+
       <TopBar
         onShare={openShareModal}
         isSharing={isSharing}
         error={shareError}
         lastShareUrl={lastShareUrl}
         onShowLastLink={handleShowLastLink}
+        templateSelector={<TemplateSelector onSelect={setMarkdown} />}
       />
 
       <div className={styles.workspace}>
@@ -127,9 +137,11 @@ export default function Home() {
         </div>
       </div>
 
+      <TableOfContents content={markdown} />
+
       <MobileToggle
         viewMode={viewMode}
-        onToggle={() => setViewMode(v => v === 'editor' ? 'preview' : 'editor')}
+        onToggle={toggleView}
       />
 
       <ShareModal

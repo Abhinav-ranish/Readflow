@@ -1,0 +1,33 @@
+.exportButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background-color: var(--bg-tertiary);
+    color: var(--fg-primary);
+    padding: 0.45rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid var(--border-subtle);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    font-family: var(--font-action);
+    white-space: nowrap;
+}
+
+.exportButton:hover {
+    background-color: var(--border-subtle);
+    border-color: var(--fg-secondary);
+    color: #ffffff;
+}
+
+@media (max-width: 480px) {
+    .exportButton {
+        padding: 0.4rem 0.65rem;
+        font-size: 0.8rem;
+    }
+
+    .exportButton span {
+        display: none;
+    }
+}
