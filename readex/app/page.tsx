@@ -7,6 +7,11 @@ import Editor from '@/components/Editor';
 import Preview from '@/components/Preview';
 import MobileToggle from '@/components/MobileToggle';
 import ShareModal from '@/components/ShareModal';
+import TableOfContents from '@/components/TableOfContents';
+import KeyboardShortcuts from '@/components/KeyboardShortcuts';
+import TemplateSelector from '@/components/TemplateSelector';
+import LayoutToggle from '@/components/LayoutToggle';
+import type { DesktopLayout } from '@/components/LayoutToggle';
 import clsx from 'clsx';
 
 const DEFAULT_MARKDOWN = `# Welcome to Readflow
@@ -32,6 +37,15 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [lastShareUrl, setLastShareUrl] = useState<string>('');
+  const [desktopLayout, setDesktopLayout] = useState<DesktopLayout>('split');
+
+  const toggleView = React.useCallback(() => {
+    setViewMode(v => v === 'editor' ? 'preview' : 'editor');
+  }, []);
+
+  const cycleLayout = React.useCallback(() => {
+    setDesktopLayout(l => l === 'split' ? 'editor' : l === 'editor' ? 'preview' : 'split');
+  }, []);
 
   // Load from LocalStorage
   useEffect(() => {
@@ -103,17 +117,26 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
+      <KeyboardShortcuts onShare={openShareModal} onToggleView={toggleView} onCycleLayout={cycleLayout} />
+
       <TopBar
         onShare={openShareModal}
         isSharing={isSharing}
         error={shareError}
         lastShareUrl={lastShareUrl}
         onShowLastLink={handleShowLastLink}
+        templateSelector={<TemplateSelector onSelect={setMarkdown} />}
+        layoutToggle={<LayoutToggle layout={desktopLayout} onChange={setDesktopLayout} />}
       />
 
       <div className={styles.workspace}>
         {/* Editor Pane */}
-        <div className={clsx(styles.pane, styles.editorPane, viewMode === 'preview' && styles.hiddenOnMobile)}>
+        <div className={clsx(
+          styles.pane,
+          styles.editorPane,
+          viewMode === 'preview' && styles.hiddenOnMobile,
+          desktopLayout === 'preview' && styles.hiddenOnDesktop,
+        )}>
           <Editor
             value={markdown}
             onChange={setMarkdown}
@@ -122,14 +145,21 @@ export default function Home() {
         </div>
 
         {/* Preview Pane */}
-        <div className={clsx(styles.pane, styles.previewPane, viewMode === 'editor' && styles.hiddenOnMobile)}>
+        <div className={clsx(
+          styles.pane,
+          styles.previewPane,
+          viewMode === 'editor' && styles.hiddenOnMobile,
+          desktopLayout === 'editor' && styles.hiddenOnDesktop,
+        )}>
           <Preview content={markdown} />
         </div>
       </div>
 
+      <TableOfContents content={markdown} />
+
       <MobileToggle
         viewMode={viewMode}
-        onToggle={() => setViewMode(v => v === 'editor' ? 'preview' : 'editor')}
+        onToggle={toggleView}
       />
 
       <ShareModal
