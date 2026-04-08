@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useId, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
@@ -271,7 +272,7 @@ export default function Preview({ content, className }: PreviewProps) {
         <div className={`${styles.previewContainer}${className ? ` ${className}` : ''}`}>
             <div className={styles.markdownBody} data-preview-content>
                 <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
                     rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeHighlight]}
                     components={markdownComponents}
                 >
