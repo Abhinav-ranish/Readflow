@@ -24,13 +24,13 @@ export function isValidBypassCode(code: string): boolean {
 // Plan limits
 const PLAN_LIMITS = {
     free: {
-        maxDocs: 10,
+        maxDocs: Infinity,
         aiCredits: 0,
-        analytics: false,
-        customSlugs: false,
+        analytics: true,
+        customSlugs: true,
         customDomain: false,
-        passwordShares: false,
-        expiringLinks: false,
+        passwordShares: true,
+        expiringLinks: true,
     },
     pro: {
         maxDocs: Infinity,
