@@ -1,0 +1,24 @@
+{
+  "name": "readflow-md",
+  "version": "0.1.0",
+  "description": "Share markdown files instantly from the terminal",
+  "type": "module",
+  "bin": {
+    "readflow": "./readflow.mjs"
+  },
+  "keywords": [
+    "markdown",
+    "share",
+    "cli",
+    "readme",
+    "documentation"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Abhinav-ranish/Readflow.git"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
