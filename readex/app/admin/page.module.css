@@ -40,11 +40,13 @@
     text-decoration: underline;
 }
 
+/* Header */
+
 .header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1.5rem 0;
+    padding: 1.5rem 0 1rem;
     border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -71,132 +73,24 @@
     color: var(--fg-primary);
 }
 
-.title {
+.headerTitle {
     font-size: 1.2rem;
     font-weight: 600;
 }
 
 .stats {
     display: flex;
-    gap: 1rem;
-    font-size: 0.85rem;
-    color: var(--fg-secondary);
-}
-
-.tabs {
-    display: flex;
-    gap: 4px;
-    padding: 1rem 0;
-}
-
-.tab {
-    display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    border: none;
-    background: none;
-    border-radius: 6px;
-    color: var(--fg-secondary);
-    font-size: 0.88rem;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.tab:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: var(--fg-primary);
-}
-
-.activeTab {
-    background-color: rgba(255, 255, 255, 0.08);
-    color: var(--fg-primary);
-    font-weight: 500;
-}
-
-.tableWrap {
-    overflow-x: auto;
-}
-
-.table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.88rem;
-}
-
-.table th {
-    text-align: left;
-    padding: 10px 12px;
-    font-weight: 500;
-    color: var(--fg-muted);
-    border-bottom: 1px solid var(--border-subtle);
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.table td {
-    padding: 10px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    color: var(--fg-secondary);
-}
-
-.table tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.02);
-}
-
-.userCell {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.avatar {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-}
-
-.providerBadge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    background-color: rgba(255, 255, 255, 0.06);
-    color: var(--fg-secondary);
-    text-transform: capitalize;
-}
-
-.planBadge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    background-color: rgba(255, 255, 255, 0.06);
-    color: var(--fg-secondary);
-}
-
-.proPlan {
-    background-color: rgba(210, 153, 34, 0.15);
-    color: #d4a017;
-}
-
-.slug {
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    background-color: rgba(255, 255, 255, 0.06);
-    padding: 2px 6px;
-    border-radius: 3px;
-}
-
-.viewLink {
-    color: var(--accent-primary);
-    text-decoration: none;
+    gap: 0.5rem;
     font-size: 0.82rem;
+    color: var(--fg-muted);
 }
 
-.viewLink:hover {
-    text-decoration: underline;
+.statDot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background-color: var(--fg-muted);
 }
 
 .actionError {
@@ -209,94 +103,323 @@
     border-radius: 6px;
 }
 
-.actionCell {
+/* Breadcrumb */
+
+.breadcrumb {
     display: flex;
+    align-items: center;
     gap: 4px;
+    padding: 1rem 0 0.75rem;
+    font-size: 0.85rem;
 }
 
-.actionBtn {
+.crumb {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background-color 0.12s;
+}
+
+.crumb:hover {
+    background-color: rgba(56, 139, 253, 0.08);
+}
+
+.crumbActive {
+    color: var(--fg-primary);
+    font-weight: 500;
+    cursor: default;
+}
+
+.crumbSep {
+    color: var(--fg-muted);
+    flex-shrink: 0;
+}
+
+/* Finder Grid */
+
+.finderGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+    padding: 0.5rem 0;
+}
+
+/* Shared item base */
+
+.finderItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px 8px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: center;
+    position: relative;
+    transition: background-color 0.12s;
+    user-select: none;
+}
+
+.finderItem:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+.finderName {
+    font-size: 0.8rem;
+    color: var(--fg-primary);
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+
+.finderMeta {
+    font-size: 0.7rem;
+    color: var(--fg-muted);
+}
+
+/* Folder items (users) */
+
+.folderItem {
+    min-height: 130px;
+}
+
+.folderIcon {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 4px;
+    width: 72px;
+    height: 56px;
+    color: #58a6ff;
+}
+
+.folderAvatar {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-primary);
+    z-index: 1;
+}
+
+.dropTarget {
+    background-color: rgba(56, 139, 253, 0.1) !important;
+    outline: 2px dashed var(--accent-primary);
+    outline-offset: -2px;
+    border-radius: 10px;
+}
+
+.providerBadge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    background-color: rgba(255, 255, 255, 0.06);
+    color: var(--fg-muted);
+    text-transform: capitalize;
+}
+
+.githubBadge {
+    background-color: rgba(255, 255, 255, 0.08);
     color: var(--fg-secondary);
-    text-decoration: none;
+}
+
+.finderActions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.finderItem:hover .finderActions {
+    opacity: 1;
+}
+
+.dangerBtnSmall {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    border: none;
+    background: none;
+    color: var(--fg-muted);
+    cursor: pointer;
     transition: all 0.12s;
 }
 
-.actionBtn:hover {
-    background-color: rgba(255, 255, 255, 0.08);
-    color: var(--fg-primary);
+.dangerBtnSmall:hover {
+    background-color: rgba(248, 81, 73, 0.15);
+    color: #f85149;
 }
 
-.dangerBtn {
+/* File items (documents) */
+
+.fileItem {
+    min-height: 160px;
+}
+
+.fileSelected {
+    background-color: rgba(56, 139, 253, 0.12) !important;
+    outline: 2px solid rgba(56, 139, 253, 0.4);
+    outline-offset: -2px;
+}
+
+.fileThumb {
+    position: relative;
+    width: 88px;
+    height: 100px;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 12px 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    overflow: hidden;
+    transition: border-color 0.12s;
+}
+
+.finderItem:hover .fileThumb {
+    border-color: var(--border-active);
+}
+
+.fileCorner {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(225deg, var(--bg-primary) 50%, var(--border-subtle) 50%);
+}
+
+.fileLines {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.fileLine {
+    display: block;
+    height: 3px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 1px;
+}
+
+.fileExt {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    font-size: 0.6rem;
+    font-family: var(--font-mono);
+    color: var(--fg-muted);
+    background-color: rgba(255, 255, 255, 0.04);
+    padding: 1px 4px;
+    border-radius: 2px;
+}
+
+.fileSlug {
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    color: var(--fg-muted);
+    background-color: rgba(255, 255, 255, 0.04);
+    padding: 1px 6px;
+    border-radius: 3px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Hover actions on files */
+
+.fileActions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 3px;
+    z-index: 2;
+}
+
+.finderItem:hover .fileActions {
+    opacity: 1;
+}
+
+.fileActionBtn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     border-radius: 4px;
     border: none;
     background: none;
     color: var(--fg-secondary);
     cursor: pointer;
+    text-decoration: none;
     transition: all 0.12s;
 }
 
-.dangerBtn:hover {
+.fileActionBtn:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--fg-primary);
+}
+
+.fileActionDanger:hover {
     background-color: rgba(248, 81, 73, 0.12);
     color: #f85149;
 }
 
-.editableCell {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 4px;
-    transition: background-color 0.12s;
-}
+/* Inline edit form */
 
-.editableCell:hover {
-    background-color: rgba(255, 255, 255, 0.06);
-}
-
-.editHint {
-    opacity: 0;
-    color: var(--fg-muted);
-    transition: opacity 0.12s;
-}
-
-.editableCell:hover .editHint {
-    opacity: 1;
-}
-
-.muted {
-    color: var(--fg-muted);
-    font-style: italic;
-}
-
-.inlineEdit {
-    display: inline-flex;
-    align-items: center;
+.editForm {
+    display: flex;
+    flex-direction: column;
     gap: 4px;
+    width: 100%;
+    padding: 0 4px;
 }
 
-.inlineInput {
-    padding: 4px 8px;
-    font-size: 0.82rem;
+.editInput {
+    width: 100%;
+    padding: 4px 6px;
+    font-size: 0.75rem;
     background-color: var(--bg-secondary);
     border: 1px solid var(--accent-primary);
     border-radius: 4px;
     color: var(--fg-primary);
     outline: none;
-    width: 140px;
+    box-sizing: border-box;
 }
 
-.inlineOk {
+.editInput::placeholder {
+    color: var(--fg-muted);
+}
+
+.editBtns {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+.editSave {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -309,11 +432,11 @@
     cursor: pointer;
 }
 
-.inlineOk:hover {
+.editSave:hover {
     background-color: rgba(63, 185, 80, 0.25);
 }
 
-.inlineCancel {
+.editCancel {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -326,15 +449,41 @@
     cursor: pointer;
 }
 
-.inlineCancel:hover {
+.editCancel:hover {
     background-color: rgba(248, 81, 73, 0.2);
 }
 
-@media (max-width: 768px) {
-    .table {
-        font-size: 0.8rem;
+/* Empty state */
+
+.emptyFolder {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 3rem 1rem;
+    color: var(--fg-muted);
+}
+
+.emptyFolder p {
+    font-size: 0.88rem;
+    margin: 0;
+}
+
+/* Responsive */
+
+@media (max-width: 600px) {
+    .finderGrid {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 4px;
     }
-    .table th, .table td {
-        padding: 8px;
+
+    .finderItem {
+        padding: 12px 6px 10px;
+    }
+
+    .fileThumb {
+        width: 72px;
+        height: 84px;
     }
 }
