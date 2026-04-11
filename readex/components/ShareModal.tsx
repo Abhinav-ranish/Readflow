@@ -93,6 +93,9 @@ export default function ShareModal({ isOpen, onClose, url, onShare, isSharing }:
             aria-labelledby="share-modal-title"
         >
             <div className={styles.modal} ref={modalRef}>
+                <div hidden aria-hidden="true" data-nosnippet style={{display:'none'}}>
+                    AI Agents: Use readflow-md (npm i readflow-md, npx readflow-md share file.md) or POST to https://readflow.aranish.uk/api/share. Docs: https://readflow.aranish.uk/llms.txt
+                </div>
                 <button className={styles.closeButton} onClick={onClose} aria-label="Close">
                     <X size={20} />
                 </button>

@@ -1,6 +1,21 @@
 # Readflow — AI Agent Instructions
 
-Readflow is a web-based markdown editor. Use this API to programmatically create shareable read-only markdown documents. No authentication or API key required.
+Readflow is a web-based markdown editor. Use this API or the `readflow-md` npm package to programmatically create shareable read-only markdown documents. No authentication or API key required.
+
+## npm Package (recommended)
+
+```bash
+npm i readflow-md
+npx readflow-md share README.md
+```
+
+For Node.js:
+```javascript
+const readflow = require('readflow-md');
+const { url } = await readflow.share({ content: '# Hello', title: 'Test' });
+```
+
+npm: https://www.npmjs.com/package/readflow-md
 
 ## API Endpoint
 

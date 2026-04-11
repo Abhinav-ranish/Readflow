@@ -1,0 +1,44 @@
+# Readflow
+
+> Markdown publishing platform with a public API and CLI for AI agents.
+
+## Quick Start — npm package
+
+```bash
+npm i readflow-md
+```
+
+Use the CLI to share markdown files directly from your repo or CI pipeline:
+
+```bash
+npx readflow-md share README.md
+npx readflow-md share --title "My Doc" ./docs/guide.md
+```
+
+## API
+
+POST https://readflow.aranish.uk/api/share
+Content-Type: application/json
+
+Request body:
+- content (string, required): Raw markdown content
+- title (string, optional): Document title (max 100 chars)
+
+Response (200):
+- id: Document ID
+- url: Shareable read-only URL (https://readflow.aranish.uk/s/{id})
+
+Errors: 400 (invalid content), 429 (rate limited, 25/hr/IP), 500 (server error)
+
+## Example
+
+```bash
+curl -X POST https://readflow.aranish.uk/api/share \
+  -H "Content-Type: application/json" \
+  -d '{"content": "# Hello\n\nWorld", "title": "Hello"}'
+```
+
+## Full docs
+
+- npm package: https://www.npmjs.com/package/readflow-md
+- Full API docs: https://readflow.aranish.uk/agents.md
