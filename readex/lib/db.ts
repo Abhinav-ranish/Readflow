@@ -10,6 +10,7 @@ export interface ReadmeEntry {
     passwordHash?: string;
     expiresAt?: number;
     userId?: string;
+    slug?: string;
 }
 
 export interface UserEntry {
@@ -39,11 +40,13 @@ export interface ReadmeVersion {
 }
 
 interface DBAdapter {
-    saveReadme(content: string, ip?: string, title?: string, opts?: { password?: string; expiresIn?: number; userId?: string }): Promise<string>;
+    saveReadme(content: string, ip?: string, title?: string, opts?: { password?: string; expiresIn?: number; userId?: string; slug?: string }): Promise<string>;
     getReadme(id: string): Promise<ReadmeEntry | null>;
+    getReadmeBySlug(slug: string): Promise<(ReadmeEntry & { id: string }) | null>;
     updateReadme(id: string, content: string, userId: string, title?: string): Promise<boolean>;
+    setSlug(id: string, slug: string, userId: string): Promise<boolean>;
     checkRateLimit(ip: string): Promise<boolean>;
-    getReadmesByUser(userId: string): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number }[]>;
+    getReadmesByUser(userId: string): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string }[]>;
     deleteReadme(id: string, userId: string): Promise<boolean>;
     // Comments
     addComment(readmeId: string, authorName: string, content: string, userId?: string): Promise<string>;
@@ -131,7 +134,7 @@ const localAdapter: DBAdapter = {
         const id = nanoid(10);
         const passwordHash = opts?.password ? await hashPassword(opts.password) : undefined;
         const expiresAt = opts?.expiresIn ? Date.now() + opts.expiresIn * 1000 : undefined;
-        const data = { content, title, ip, createdAt: Date.now(), passwordHash, expiresAt, userId: opts?.userId };
+        const data = { content, title, ip, createdAt: Date.now(), passwordHash, expiresAt, userId: opts?.userId, slug: opts?.slug };
 
         if (process.env.NODE_ENV === 'development') {
             const store = readStore();
@@ -166,7 +169,36 @@ const localAdapter: DBAdapter = {
             passwordHash: entry.passwordHash || undefined,
             expiresAt: entry.expiresAt || undefined,
             userId: entry.userId || undefined,
+            slug: entry.slug || undefined,
         };
+    },
+
+    async getReadmeBySlug(slug): Promise<(ReadmeEntry & { id: string }) | null> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            for (const [id, entry] of Object.entries(store.readmes) as [string, any][]) {
+                if (entry.slug === slug) {
+                    if (entry.expiresAt && Date.now() > entry.expiresAt) return null;
+                    return {
+                        id,
+                        content: entry.content,
+                        title: entry.title || undefined,
+                        createdAt: entry.createdAt || undefined,
+                        passwordHash: entry.passwordHash || undefined,
+                        expiresAt: entry.expiresAt || undefined,
+                        userId: entry.userId || undefined,
+                        slug: entry.slug || undefined,
+                    };
+                }
+            }
+        } else {
+            for (const [id, entry] of memoryStore.readmes.entries()) {
+                if (entry.slug === slug) {
+                    return { id, content: entry.content, title: entry.title, createdAt: entry.createdAt, passwordHash: entry.passwordHash, expiresAt: entry.expiresAt, userId: entry.userId, slug: entry.slug };
+                }
+            }
+        }
+        return null;
     },
 
     async updateReadme(id, content, userId, title): Promise<boolean> {
@@ -190,19 +222,42 @@ const localAdapter: DBAdapter = {
         }
     },
 
-    async getReadmesByUser(userId): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number }[]> {
-        const results: { id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number }[] = [];
+    async setSlug(id, slug, userId): Promise<boolean> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            const entry = store.readmes[id];
+            if (!entry || entry.userId !== userId) return false;
+            // Check slug uniqueness
+            for (const [oid, oentry] of Object.entries(store.readmes) as [string, any][]) {
+                if (oid !== id && oentry.slug === slug) return false;
+            }
+            entry.slug = slug;
+            writeStore(store);
+            return true;
+        } else {
+            const entry = memoryStore.readmes.get(id);
+            if (!entry || entry.userId !== userId) return false;
+            for (const [oid, oentry] of memoryStore.readmes.entries()) {
+                if (oid !== id && oentry.slug === slug) return false;
+            }
+            entry.slug = slug;
+            return true;
+        }
+    },
+
+    async getReadmesByUser(userId): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string }[]> {
+        const results: { id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string }[] = [];
         if (process.env.NODE_ENV === 'development') {
             const store = readStore();
             for (const [id, entry] of Object.entries(store.readmes) as [string, any][]) {
                 if (entry.userId === userId) {
-                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt });
+                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug });
                 }
             }
         } else {
             for (const [id, entry] of memoryStore.readmes.entries()) {
                 if (entry.userId === userId) {
-                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt });
+                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug });
                 }
             }
         }
@@ -360,12 +415,26 @@ async function queryD1(sql: string, params: any[] = []) {
     return json.result[0]?.results || [];
 }
 
+async function safeAlter(sql: string) {
+    try { await queryD1(sql); } catch (e: any) {
+        if (e?.message?.includes('duplicate column') || e?.message?.includes('already exists')) return;
+        throw e;
+    }
+}
+
 async function ensureD1Tables() {
-    await queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER, ip_address TEXT, title TEXT, password_hash TEXT, expires_at INTEGER, user_id TEXT)`);
+    await queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER, ip_address TEXT, title TEXT, password_hash TEXT, expires_at INTEGER, user_id TEXT, slug TEXT)`);
     await queryD1(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE, name TEXT, image TEXT, provider TEXT, provider_id TEXT, created_at INTEGER)`);
     await queryD1(`CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, readme_id TEXT, user_id TEXT, author_name TEXT, content TEXT, created_at INTEGER)`);
     await queryD1(`CREATE TABLE IF NOT EXISTS readme_versions (id TEXT PRIMARY KEY, readme_id TEXT, content TEXT, created_at INTEGER)`);
     await queryD1(`CREATE TABLE IF NOT EXISTS readme_views (id INTEGER PRIMARY KEY AUTOINCREMENT, readme_id TEXT, ip TEXT, referrer TEXT, created_at INTEGER)`);
+
+    // Migrate: add columns that may be missing from older table versions
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN password_hash TEXT`);
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN expires_at INTEGER`);
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN user_id TEXT`);
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN title TEXT`);
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN slug TEXT`);
 }
 
 // Track init
@@ -398,8 +467,8 @@ const cloudflareAdapter: DBAdapter = {
         const passwordHash = opts?.password ? await hashPassword(opts.password) : null;
         const expiresAt = opts?.expiresIn ? Date.now() + opts.expiresIn * 1000 : null;
         await queryD1(
-            `INSERT INTO readmes (id, content, created_at, ip_address, title, password_hash, expires_at, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, content, Date.now(), ip || 'unknown', title || null, passwordHash, expiresAt, opts?.userId || null]
+            `INSERT INTO readmes (id, content, created_at, ip_address, title, password_hash, expires_at, user_id, slug) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, content, Date.now(), ip || 'unknown', title || null, passwordHash, expiresAt, opts?.userId || null, opts?.slug || null]
         );
         await queryD1(
             `INSERT INTO readme_versions (id, readme_id, content, created_at) VALUES (?, ?, ?, ?)`,
@@ -411,7 +480,7 @@ const cloudflareAdapter: DBAdapter = {
     async getReadme(id): Promise<ReadmeEntry | null> {
         await initD1();
         try {
-            const results = await queryD1(`SELECT content, title, created_at, password_hash, expires_at, user_id FROM readmes WHERE id = ? LIMIT 1`, [id]);
+            const results = await queryD1(`SELECT content, title, created_at, password_hash, expires_at, user_id, slug FROM readmes WHERE id = ? LIMIT 1`, [id]);
             if (results.length === 0) return null;
             const r = results[0];
             if (r.expires_at && Date.now() > r.expires_at) return null;
@@ -422,6 +491,29 @@ const cloudflareAdapter: DBAdapter = {
                 passwordHash: r.password_hash || undefined,
                 expiresAt: r.expires_at || undefined,
                 userId: r.user_id || undefined,
+                slug: r.slug || undefined,
+            };
+        } catch {
+            return null;
+        }
+    },
+
+    async getReadmeBySlug(slug): Promise<(ReadmeEntry & { id: string }) | null> {
+        await initD1();
+        try {
+            const results = await queryD1(`SELECT id, content, title, created_at, password_hash, expires_at, user_id, slug FROM readmes WHERE slug = ? LIMIT 1`, [slug]);
+            if (results.length === 0) return null;
+            const r = results[0];
+            if (r.expires_at && Date.now() > r.expires_at) return null;
+            return {
+                id: r.id,
+                content: r.content,
+                title: r.title || undefined,
+                createdAt: r.created_at || undefined,
+                passwordHash: r.password_hash || undefined,
+                expiresAt: r.expires_at || undefined,
+                userId: r.user_id || undefined,
+                slug: r.slug || undefined,
             };
         } catch {
             return null;
@@ -441,10 +533,21 @@ const cloudflareAdapter: DBAdapter = {
         return true;
     },
 
+    async setSlug(id, slug, userId): Promise<boolean> {
+        await initD1();
+        const results = await queryD1(`SELECT user_id FROM readmes WHERE id = ? LIMIT 1`, [id]);
+        if (results.length === 0 || results[0].user_id !== userId) return false;
+        // Check uniqueness
+        const existing = await queryD1(`SELECT id FROM readmes WHERE slug = ? AND id != ? LIMIT 1`, [slug, id]);
+        if (existing.length > 0) return false;
+        await queryD1(`UPDATE readmes SET slug = ? WHERE id = ?`, [slug, id]);
+        return true;
+    },
+
     async getReadmesByUser(userId) {
         await initD1();
         const results = await queryD1(
-            `SELECT id, title, created_at, password_hash, expires_at FROM readmes WHERE user_id = ? ORDER BY created_at DESC`,
+            `SELECT id, title, created_at, password_hash, expires_at, slug FROM readmes WHERE user_id = ? ORDER BY created_at DESC`,
             [userId]
         );
         return results.map((r: any) => ({
@@ -453,6 +556,7 @@ const cloudflareAdapter: DBAdapter = {
             createdAt: r.created_at || 0,
             hasPassword: !!r.password_hash,
             expiresAt: r.expires_at || undefined,
+            slug: r.slug || undefined,
         }));
     },
 

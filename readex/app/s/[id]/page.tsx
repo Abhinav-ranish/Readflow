@@ -8,10 +8,11 @@ import CommentSection from '@/components/CommentSection';
 import SharedPageClient from './SharedPageClient';
 import styles from './page.module.css';
 import { notFound } from 'next/navigation';
-import { Lock, Clock } from 'lucide-react';
+import { Lock, Clock, Pencil, History } from 'lucide-react';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
+import { auth } from '@/lib/auth';
 
 interface Props {
     params: Promise<{ id: string }>;
@@ -75,6 +76,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             title: title || 'Shared Document',
             description,
         },
+        other: {
+            'script:ld+json': JSON.stringify({
+                '@context': 'https://schema.org',
+                '@type': 'Article',
+                headline: title || 'Shared Document',
+                description,
+                datePublished: entry.createdAt ? new Date(entry.createdAt).toISOString() : undefined,
+                publisher: {
+                    '@type': 'Organization',
+                    name: 'Readflow',
+                    url: 'https://readflow.aranish.uk',
+                },
+            }),
+        },
     };
 }
 
@@ -93,10 +108,14 @@ export default async function SharedReadmePage({ params }: Props) {
     const referrer = headersList.get('referer') || undefined;
     db.recordView(id, ip, referrer).catch(() => {});
 
-    const { content, title, createdAt, passwordHash, expiresAt } = entry;
+    const { content, title, createdAt, passwordHash, expiresAt, userId } = entry;
     const isProtected = !!passwordHash;
     const timeAgo = createdAt ? formatTimeAgo(createdAt) : null;
     const viewCount = await db.getViewCount(id);
+
+    const session = await auth();
+    const currentUserId = (session?.user as any)?.dbId;
+    const isOwner = !!(currentUserId && userId && currentUserId === userId);
 
     // If password-protected, render client component that handles unlock
     if (isProtected) {
@@ -109,6 +128,7 @@ export default async function SharedReadmePage({ params }: Props) {
                 expiresAt={expiresAt}
                 isProtected={true}
                 viewCount={viewCount}
+                isOwner={isOwner}
             />
         );
     }
@@ -143,6 +163,16 @@ export default async function SharedReadmePage({ params }: Props) {
                     )}
                 </div>
                 <div className={styles.actions}>
+                    {isOwner && (
+                        <>
+                            <Link href={`/s/${id}/edit`} className={styles.createLink} title="Edit">
+                                <Pencil size={14} />
+                            </Link>
+                            <Link href={`/s/${id}/versions`} className={styles.createLink} title="Version History">
+                                <History size={14} />
+                            </Link>
+                        </>
+                    )}
                     <ForkButton content={content} />
                     <DownloadMenu content={content} title={title} />
                     <Link href="/" className={styles.createLink}>
