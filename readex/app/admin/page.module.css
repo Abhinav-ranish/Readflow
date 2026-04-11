@@ -171,7 +171,7 @@
 .finderName {
     font-size: 0.8rem;
     color: var(--fg-primary);
-    max-width: 120px;
+    max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -263,10 +263,37 @@
     color: #f85149;
 }
 
+/* Section divider for uncategorized */
+
+.sectionDivider {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0 4px;
+    margin-top: 4px;
+}
+
+.sectionDivider span {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.sectionDivider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background-color: var(--border-subtle);
+}
+
 /* File items (documents) */
 
 .fileItem {
-    min-height: 160px;
+    min-height: 170px;
 }
 
 .fileSelected {
@@ -277,15 +304,14 @@
 
 .fileThumb {
     position: relative;
-    width: 88px;
-    height: 100px;
+    width: 100px;
+    height: 120px;
     background-color: var(--bg-tertiary);
     border: 1px solid var(--border-subtle);
     border-radius: 4px;
-    padding: 12px 10px 8px;
+    padding: 10px 8px 8px;
     display: flex;
     flex-direction: column;
-    gap: 5px;
     overflow: hidden;
     transition: border-color 0.12s;
 }
@@ -314,6 +340,25 @@
     height: 3px;
     background-color: rgba(255, 255, 255, 0.08);
     border-radius: 1px;
+}
+
+.filePreview {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+    flex: 1;
+}
+
+.previewLine {
+    display: block;
+    font-size: 0.35rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.35);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-mono);
 }
 
 .fileExt {

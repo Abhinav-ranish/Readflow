@@ -74,7 +74,7 @@ interface DBAdapter {
     setDocPinned(id: string, userId: string, pinned: boolean): Promise<boolean>;
     // Admin
     getAllUsers(): Promise<UserEntry[]>;
-    getAllDocs(): Promise<{ id: string; title?: string; userId?: string; createdAt: number; slug?: string; folder?: string; pinned?: boolean }[]>;
+    getAllDocs(): Promise<{ id: string; title?: string; userId?: string; createdAt: number; slug?: string; folder?: string; pinned?: boolean; preview?: string }[]>;
     adminDeleteDoc(id: string): Promise<boolean>;
     adminSetSlug(id: string, slug: string | null): Promise<boolean>;
     adminSetTitle(id: string, title: string): Promise<boolean>;
@@ -510,10 +510,12 @@ const localAdapter: DBAdapter = {
             const store = readStore();
             return Object.entries(store.readmes).map(([id, r]: [string, any]) => ({
                 id, title: r.title, userId: r.userId, createdAt: r.createdAt, slug: r.slug, folder: r.folder, pinned: r.pinned,
+                preview: typeof r.content === 'string' ? r.content.slice(0, 200) : undefined,
             }));
         }
         return Array.from(memoryStore.readmes.entries()).map(([id, r]) => ({
             id, title: r.title, userId: r.userId, createdAt: r.createdAt, slug: r.slug, folder: r.folder, pinned: r.pinned,
+            preview: typeof r.content === 'string' ? r.content.slice(0, 200) : undefined,
         }));
     },
 
@@ -922,10 +924,10 @@ const cloudflareAdapter: DBAdapter = {
 
     async getAllDocs() {
         await initD1();
-        const results = await queryD1(`SELECT id, title, user_id, created_at, slug, folder, pinned FROM readmes ORDER BY created_at DESC`);
+        const results = await queryD1(`SELECT id, title, user_id, created_at, slug, folder, pinned, SUBSTR(content, 1, 200) as preview FROM readmes ORDER BY created_at DESC`);
         return results.map((r: any) => ({
             id: r.id, title: r.title, userId: r.user_id, createdAt: r.created_at,
-            slug: r.slug, folder: r.folder, pinned: !!r.pinned,
+            slug: r.slug, folder: r.folder, pinned: !!r.pinned, preview: r.preview || undefined,
         }));
     },
 

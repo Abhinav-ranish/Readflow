@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -24,6 +24,124 @@ interface Doc {
     slug?: string;
     folder?: string;
     pinned?: boolean;
+    preview?: string;
+}
+
+function DocFileItem({ doc, selected, editingDoc, editTitle, editSlug, setEditTitle, setEditSlug, setEditingDoc, setSelected, handleSaveDoc, handleDeleteDoc, handleDragStart }: {
+    doc: Doc;
+    selected: Set<string>;
+    editingDoc: string | null;
+    editTitle: string;
+    editSlug: string;
+    setEditTitle: (v: string) => void;
+    setEditSlug: (v: string) => void;
+    setEditingDoc: (v: string | null) => void;
+    setSelected: React.Dispatch<React.SetStateAction<Set<string>>>;
+    handleSaveDoc: (id: string) => void;
+    handleDeleteDoc: (id: string) => void;
+    handleDragStart: (e: React.DragEvent, id: string) => void;
+}) {
+    // Build preview lines from content
+    const previewLines = (doc.preview || '').replace(/[#*`>\-\[\]()!]/g, '').split('\n').filter(l => l.trim()).slice(0, 6);
+
+    return (
+        <div
+            className={`${styles.finderItem} ${styles.fileItem} ${selected.has(doc.id) ? styles.fileSelected : ''}`}
+            draggable
+            onDragStart={(e) => handleDragStart(e, doc.id)}
+            onClick={(e) => {
+                if (e.metaKey || e.ctrlKey) {
+                    setSelected(prev => {
+                        const next = new Set(prev);
+                        next.has(doc.id) ? next.delete(doc.id) : next.add(doc.id);
+                        return next;
+                    });
+                } else {
+                    setSelected(new Set([doc.id]));
+                }
+            }}
+        >
+            {/* Document thumbnail with real preview */}
+            <div className={styles.fileThumb}>
+                <div className={styles.fileCorner} />
+                <div className={styles.filePreview}>
+                    {previewLines.length > 0 ? previewLines.map((line, i) => (
+                        <span key={i} className={styles.previewLine}>{line}</span>
+                    )) : (
+                        <div className={styles.fileLines}>
+                            <span className={styles.fileLine} style={{ width: '80%' }} />
+                            <span className={styles.fileLine} style={{ width: '60%' }} />
+                            <span className={styles.fileLine} style={{ width: '90%' }} />
+                            <span className={styles.fileLine} style={{ width: '45%' }} />
+                            <span className={styles.fileLine} style={{ width: '70%' }} />
+                        </div>
+                    )}
+                </div>
+                <span className={styles.fileExt}>.md</span>
+            </div>
+
+            {/* Title - editable */}
+            {editingDoc === doc.id ? (
+                <div className={styles.editForm} onClick={e => e.stopPropagation()}>
+                    <input
+                        className={styles.editInput}
+                        value={editTitle}
+                        onChange={e => setEditTitle(e.target.value)}
+                        placeholder="Title"
+                        autoFocus
+                        onKeyDown={e => { if (e.key === 'Enter') handleSaveDoc(doc.id); if (e.key === 'Escape') setEditingDoc(null); }}
+                    />
+                    <input
+                        className={styles.editInput}
+                        value={editSlug}
+                        onChange={e => setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                        placeholder="slug"
+                        onKeyDown={e => { if (e.key === 'Enter') handleSaveDoc(doc.id); if (e.key === 'Escape') setEditingDoc(null); }}
+                    />
+                    <div className={styles.editBtns}>
+                        <button className={styles.editSave} onClick={() => handleSaveDoc(doc.id)}><Check size={12} /></button>
+                        <button className={styles.editCancel} onClick={() => setEditingDoc(null)}><X size={12} /></button>
+                    </div>
+                </div>
+            ) : (
+                <span className={styles.finderName} title={doc.title || 'Untitled'}>
+                    {doc.title || 'Untitled'}
+                </span>
+            )}
+
+            {doc.slug && editingDoc !== doc.id && (
+                <span className={styles.fileSlug}>/p/{doc.slug}</span>
+            )}
+
+            <span className={styles.finderMeta}>
+                {new Date(doc.createdAt).toLocaleDateString()}
+            </span>
+
+            {/* Hover actions */}
+            <div className={styles.fileActions} onClick={e => e.stopPropagation()}>
+                <a href={`/s/${doc.id}`} target="_blank" rel="noopener noreferrer" className={styles.fileActionBtn} title="Open in new tab">
+                    <ExternalLink size={13} />
+                </a>
+                <a href={`/s/${doc.id}/edit`} target="_blank" rel="noopener noreferrer" className={styles.fileActionBtn} title="Edit content">
+                    <Pencil size={13} />
+                </a>
+                <button
+                    className={styles.fileActionBtn}
+                    title="Rename"
+                    onClick={() => { setEditingDoc(doc.id); setEditTitle(doc.title || ''); setEditSlug(doc.slug || ''); }}
+                >
+                    <FileText size={13} />
+                </button>
+                <button
+                    className={`${styles.fileActionBtn} ${styles.fileActionDanger}`}
+                    title="Delete"
+                    onClick={() => handleDeleteDoc(doc.id)}
+                >
+                    <Trash2 size={13} />
+                </button>
+            </div>
+        </div>
+    );
 }
 
 export default function AdminPage() {
@@ -122,15 +240,16 @@ export default function AdminPage() {
         setDragOverUser(null);
         const docId = e.dataTransfer.getData('text/plain');
         if (!docId) return;
-        // Move doc to this user's ownership — this would need a new API endpoint
-        // For now, just visually regroup by opening that user's folder
         setActiveUser(userId);
     };
 
-    const activeUserData = activeUser ? users.find(u => u.id === activeUser) : null;
-    const visibleDocs = activeUser ? docs.filter(d => d.userId === activeUser) : docs.filter(d => !d.userId);
     const orphanDocs = docs.filter(d => !d.userId);
-    const userMap = new Map(users.map(u => [u.id, u]));
+
+    const docItemProps = {
+        selected, editingDoc, editTitle, editSlug,
+        setEditTitle, setEditSlug, setEditingDoc, setSelected,
+        handleSaveDoc, handleDeleteDoc, handleDragStart,
+    };
 
     if (status === 'loading' || loading) {
         return <div className={styles.container}><div className={styles.loading}>Loading...</div></div>;
@@ -148,11 +267,17 @@ export default function AdminPage() {
         );
     }
 
+    const activeUserData = activeUser ? users.find(u => u.id === activeUser) : null;
+
     return (
         <div className={styles.container}>
             <header className={styles.header}>
                 <div className={styles.headerLeft}>
-                    <Link href="/dashboard" className={styles.backBtn}><ArrowLeft size={16} /></Link>
+                    {activeUser ? (
+                        <button className={styles.backBtn} onClick={() => setActiveUser(null)}><ArrowLeft size={16} /></button>
+                    ) : (
+                        <Link href="/dashboard" className={styles.backBtn}><ArrowLeft size={16} /></Link>
+                    )}
                     <Shield size={18} />
                     <h1 className={styles.headerTitle}>Admin</h1>
                 </div>
@@ -171,7 +296,7 @@ export default function AdminPage() {
                     className={`${styles.crumb} ${!activeUser ? styles.crumbActive : ''}`}
                     onClick={() => setActiveUser(null)}
                 >
-                    All Users
+                    All
                 </button>
                 {activeUserData && (
                     <>
@@ -185,15 +310,14 @@ export default function AdminPage() {
 
             {/* Main Finder area */}
             {!activeUser ? (
-                /* User folders grid */
                 <div className={styles.finderGrid}>
+                    {/* User folders */}
                     {users.map(u => {
                         const userDocs = docs.filter(d => d.userId === u.id);
                         return (
                             <div
                                 key={u.id}
                                 className={`${styles.finderItem} ${styles.folderItem} ${dragOverUser === u.id ? styles.dropTarget : ''}`}
-                                onDoubleClick={() => setActiveUser(u.id)}
                                 onClick={() => setActiveUser(u.id)}
                                 onDragOver={(e) => { e.preventDefault(); setDragOverUser(u.id); }}
                                 onDragLeave={() => setDragOverUser(null)}
@@ -225,118 +349,26 @@ export default function AdminPage() {
                         );
                     })}
 
-                    {/* Orphan docs section */}
+                    {/* Uncategorized docs shown inline — no folder wrapper */}
                     {orphanDocs.length > 0 && (
-                        <div
-                            className={`${styles.finderItem} ${styles.folderItem}`}
-                            onClick={() => setActiveUser('__anonymous__')}
-                        >
-                            <div className={styles.folderIcon}>
-                                <FolderOpen size={40} strokeWidth={1} />
+                        <>
+                            <div className={styles.sectionDivider}>
+                                <span>Uncategorized</span>
                             </div>
-                            <span className={styles.finderName}>Anonymous</span>
-                            <span className={styles.finderMeta}>{orphanDocs.length} doc{orphanDocs.length !== 1 ? 's' : ''}</span>
-                        </div>
+                            {orphanDocs.map(doc => (
+                                <DocFileItem key={doc.id} doc={doc} {...docItemProps} />
+                            ))}
+                        </>
                     )}
                 </div>
             ) : (
                 /* Documents grid inside a user folder */
                 <div className={styles.finderGrid}>
-                    {(activeUser === '__anonymous__' ? orphanDocs : docs.filter(d => d.userId === activeUser)).map(doc => (
-                        <div
-                            key={doc.id}
-                            className={`${styles.finderItem} ${styles.fileItem} ${selected.has(doc.id) ? styles.fileSelected : ''}`}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, doc.id)}
-                            onClick={(e) => {
-                                if (e.metaKey || e.ctrlKey) {
-                                    setSelected(prev => {
-                                        const next = new Set(prev);
-                                        next.has(doc.id) ? next.delete(doc.id) : next.add(doc.id);
-                                        return next;
-                                    });
-                                } else {
-                                    setSelected(new Set([doc.id]));
-                                }
-                            }}
-                        >
-                            {/* Document thumbnail */}
-                            <div className={styles.fileThumb}>
-                                <div className={styles.fileCorner} />
-                                <div className={styles.fileLines}>
-                                    <span className={styles.fileLine} style={{ width: '80%' }} />
-                                    <span className={styles.fileLine} style={{ width: '60%' }} />
-                                    <span className={styles.fileLine} style={{ width: '90%' }} />
-                                    <span className={styles.fileLine} style={{ width: '45%' }} />
-                                    <span className={styles.fileLine} style={{ width: '70%' }} />
-                                </div>
-                                <span className={styles.fileExt}>.md</span>
-                            </div>
-
-                            {/* Title - editable */}
-                            {editingDoc === doc.id ? (
-                                <div className={styles.editForm} onClick={e => e.stopPropagation()}>
-                                    <input
-                                        className={styles.editInput}
-                                        value={editTitle}
-                                        onChange={e => setEditTitle(e.target.value)}
-                                        placeholder="Title"
-                                        autoFocus
-                                        onKeyDown={e => { if (e.key === 'Enter') handleSaveDoc(doc.id); if (e.key === 'Escape') setEditingDoc(null); }}
-                                    />
-                                    <input
-                                        className={styles.editInput}
-                                        value={editSlug}
-                                        onChange={e => setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                                        placeholder="slug"
-                                        onKeyDown={e => { if (e.key === 'Enter') handleSaveDoc(doc.id); if (e.key === 'Escape') setEditingDoc(null); }}
-                                    />
-                                    <div className={styles.editBtns}>
-                                        <button className={styles.editSave} onClick={() => handleSaveDoc(doc.id)}><Check size={12} /></button>
-                                        <button className={styles.editCancel} onClick={() => setEditingDoc(null)}><X size={12} /></button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <span className={styles.finderName} title={doc.title || 'Untitled'}>
-                                    {doc.title || 'Untitled'}
-                                </span>
-                            )}
-
-                            {doc.slug && editingDoc !== doc.id && (
-                                <span className={styles.fileSlug}>/p/{doc.slug}</span>
-                            )}
-
-                            <span className={styles.finderMeta}>
-                                {new Date(doc.createdAt).toLocaleDateString()}
-                            </span>
-
-                            {/* Hover actions */}
-                            <div className={styles.fileActions} onClick={e => e.stopPropagation()}>
-                                <a href={`/s/${doc.id}`} target="_blank" rel="noopener noreferrer" className={styles.fileActionBtn} title="Open in new tab">
-                                    <ExternalLink size={13} />
-                                </a>
-                                <a href={`/s/${doc.id}/edit`} target="_blank" rel="noopener noreferrer" className={styles.fileActionBtn} title="Edit content">
-                                    <Pencil size={13} />
-                                </a>
-                                <button
-                                    className={styles.fileActionBtn}
-                                    title="Rename"
-                                    onClick={() => { setEditingDoc(doc.id); setEditTitle(doc.title || ''); setEditSlug(doc.slug || ''); }}
-                                >
-                                    <FileText size={13} />
-                                </button>
-                                <button
-                                    className={`${styles.fileActionBtn} ${styles.fileActionDanger}`}
-                                    title="Delete"
-                                    onClick={() => handleDeleteDoc(doc.id)}
-                                >
-                                    <Trash2 size={13} />
-                                </button>
-                            </div>
-                        </div>
+                    {docs.filter(d => d.userId === activeUser).map(doc => (
+                        <DocFileItem key={doc.id} doc={doc} {...docItemProps} />
                     ))}
 
-                    {(activeUser === '__anonymous__' ? orphanDocs : docs.filter(d => d.userId === activeUser)).length === 0 && (
+                    {docs.filter(d => d.userId === activeUser).length === 0 && (
                         <div className={styles.emptyFolder}>
                             <FileText size={32} strokeWidth={1} />
                             <p>No documents</p>
