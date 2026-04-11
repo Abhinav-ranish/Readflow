@@ -1,9 +1,9 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Users, FileText, Shield, ArrowLeft, Trash2, Pencil, ExternalLink, Check, X } from 'lucide-react';
+import { Shield, ArrowLeft, Trash2, Pencil, ExternalLink, Check, X, ChevronRight, FolderOpen, FileText, User as UserIcon } from 'lucide-react';
 import styles from './page.module.css';
 
 interface User {
@@ -14,7 +14,6 @@ interface User {
     provider: string;
     createdAt: number;
     plan?: string;
-    aiCreditsUsed?: number;
 }
 
 interface Doc {
@@ -34,12 +33,13 @@ export default function AdminPage() {
     const [docs, setDocs] = useState<Doc[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [tab, setTab] = useState<'users' | 'docs'>('users');
-    const [editingSlug, setEditingSlug] = useState<string | null>(null);
-    const [slugValue, setSlugValue] = useState('');
-    const [editingTitle, setEditingTitle] = useState<string | null>(null);
-    const [titleValue, setTitleValue] = useState('');
+    const [activeUser, setActiveUser] = useState<string | null>(null);
+    const [editingDoc, setEditingDoc] = useState<string | null>(null);
+    const [editTitle, setEditTitle] = useState('');
+    const [editSlug, setEditSlug] = useState('');
     const [actionError, setActionError] = useState<string | null>(null);
+    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [dragOverUser, setDragOverUser] = useState<string | null>(null);
 
     useEffect(() => {
         if (status === 'unauthenticated') router.push('/login');
@@ -86,12 +86,14 @@ export default function AdminPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id }),
         });
-        if (res.ok) setUsers(prev => prev.filter(u => u.id !== id));
-        else showError('Failed to delete user');
+        if (res.ok) {
+            setUsers(prev => prev.filter(u => u.id !== id));
+            if (activeUser === id) setActiveUser(null);
+        } else showError('Failed to delete user');
     };
 
-    const handleSaveSlug = async (id: string) => {
-        const slug = slugValue.trim().toLowerCase();
+    const handleSaveDoc = async (id: string) => {
+        const slug = editSlug.trim().toLowerCase();
         if (slug && !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(slug)) {
             showError('Slug must be lowercase alphanumeric with dashes');
             return;
@@ -99,30 +101,36 @@ export default function AdminPage() {
         const res = await fetch('/api/admin/docs', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, slug: slug || null }),
+            body: JSON.stringify({ id, title: editTitle, slug: slug || null }),
         });
         if (res.ok) {
-            setDocs(prev => prev.map(d => d.id === id ? { ...d, slug: slug || undefined } : d));
-            setEditingSlug(null);
+            setDocs(prev => prev.map(d => d.id === id ? { ...d, title: editTitle, slug: slug || undefined } : d));
+            setEditingDoc(null);
         } else {
             const data = await res.json().catch(() => ({}));
-            showError(data.error || 'Failed to update slug');
+            showError(data.error || 'Failed to update');
         }
     };
 
-    const handleSaveTitle = async (id: string) => {
-        const res = await fetch('/api/admin/docs', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, title: titleValue }),
-        });
-        if (res.ok) {
-            setDocs(prev => prev.map(d => d.id === id ? { ...d, title: titleValue } : d));
-            setEditingTitle(null);
-        } else {
-            showError('Failed to update title');
-        }
+    const handleDragStart = (e: React.DragEvent, docId: string) => {
+        e.dataTransfer.setData('text/plain', docId);
+        e.dataTransfer.effectAllowed = 'move';
     };
+
+    const handleDropOnUser = async (e: React.DragEvent, userId: string) => {
+        e.preventDefault();
+        setDragOverUser(null);
+        const docId = e.dataTransfer.getData('text/plain');
+        if (!docId) return;
+        // Move doc to this user's ownership — this would need a new API endpoint
+        // For now, just visually regroup by opening that user's folder
+        setActiveUser(userId);
+    };
+
+    const activeUserData = activeUser ? users.find(u => u.id === activeUser) : null;
+    const visibleDocs = activeUser ? docs.filter(d => d.userId === activeUser) : docs.filter(d => !d.userId);
+    const orphanDocs = docs.filter(d => !d.userId);
+    const userMap = new Map(users.map(u => [u.id, u]));
 
     if (status === 'loading' || loading) {
         return <div className={styles.container}><div className={styles.loading}>Loading...</div></div>;
@@ -140,138 +148,200 @@ export default function AdminPage() {
         );
     }
 
-    const userMap = new Map(users.map(u => [u.id, u]));
-
     return (
         <div className={styles.container}>
             <header className={styles.header}>
                 <div className={styles.headerLeft}>
                     <Link href="/dashboard" className={styles.backBtn}><ArrowLeft size={16} /></Link>
                     <Shield size={18} />
-                    <h1 className={styles.title}>Admin</h1>
+                    <h1 className={styles.headerTitle}>Admin</h1>
                 </div>
                 <div className={styles.stats}>
                     <span>{users.length} users</span>
+                    <span className={styles.statDot} />
                     <span>{docs.length} docs</span>
                 </div>
             </header>
 
             {actionError && <div className={styles.actionError}>{actionError}</div>}
 
-            <div className={styles.tabs}>
-                <button className={`${styles.tab} ${tab === 'users' ? styles.activeTab : ''}`} onClick={() => setTab('users')}>
-                    <Users size={14} /> Users
+            {/* Breadcrumb */}
+            <nav className={styles.breadcrumb}>
+                <button
+                    className={`${styles.crumb} ${!activeUser ? styles.crumbActive : ''}`}
+                    onClick={() => setActiveUser(null)}
+                >
+                    All Users
                 </button>
-                <button className={`${styles.tab} ${tab === 'docs' ? styles.activeTab : ''}`} onClick={() => setTab('docs')}>
-                    <FileText size={14} /> Documents
-                </button>
-            </div>
+                {activeUserData && (
+                    <>
+                        <ChevronRight size={14} className={styles.crumbSep} />
+                        <span className={styles.crumbActive}>
+                            {activeUserData.name || activeUserData.email}
+                        </span>
+                    </>
+                )}
+            </nav>
 
-            {tab === 'users' && (
-                <div className={styles.tableWrap}>
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                <th>Email</th>
-                                <th>Provider</th>
-                                <th>Plan</th>
-                                <th>Joined</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.map(u => (
-                                <tr key={u.id}>
-                                    <td className={styles.userCell}>
-                                        {u.image && <img src={u.image} alt="" className={styles.avatar} />}
-                                        <span>{u.name || 'Unknown'}</span>
-                                    </td>
-                                    <td>{u.email}</td>
-                                    <td><span className={styles.providerBadge}>{u.provider}</span></td>
-                                    <td><span className={`${styles.planBadge} ${u.plan === 'pro' ? styles.proPlan : ''}`}>{u.plan || 'free'}</span></td>
-                                    <td>{new Date(u.createdAt).toLocaleDateString()}</td>
-                                    <td>
-                                        <button className={styles.dangerBtn} onClick={() => handleDeleteUser(u.id, u.email)} title="Delete user">
-                                            <Trash2 size={13} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            {/* Main Finder area */}
+            {!activeUser ? (
+                /* User folders grid */
+                <div className={styles.finderGrid}>
+                    {users.map(u => {
+                        const userDocs = docs.filter(d => d.userId === u.id);
+                        return (
+                            <div
+                                key={u.id}
+                                className={`${styles.finderItem} ${styles.folderItem} ${dragOverUser === u.id ? styles.dropTarget : ''}`}
+                                onDoubleClick={() => setActiveUser(u.id)}
+                                onClick={() => setActiveUser(u.id)}
+                                onDragOver={(e) => { e.preventDefault(); setDragOverUser(u.id); }}
+                                onDragLeave={() => setDragOverUser(null)}
+                                onDrop={(e) => handleDropOnUser(e, u.id)}
+                            >
+                                <div className={styles.folderIcon}>
+                                    {u.image ? (
+                                        <img src={u.image} alt="" className={styles.folderAvatar} />
+                                    ) : (
+                                        <UserIcon size={20} />
+                                    )}
+                                    <FolderOpen size={40} strokeWidth={1} />
+                                </div>
+                                <span className={styles.finderName}>{u.name || u.email.split('@')[0]}</span>
+                                <span className={styles.finderMeta}>{userDocs.length} doc{userDocs.length !== 1 ? 's' : ''}</span>
+                                <div className={styles.finderActions}>
+                                    <span className={`${styles.providerBadge} ${u.provider === 'github' ? styles.githubBadge : ''}`}>
+                                        {u.provider}
+                                    </span>
+                                    <button
+                                        className={styles.dangerBtnSmall}
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteUser(u.id, u.email); }}
+                                        title="Delete user"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {/* Orphan docs section */}
+                    {orphanDocs.length > 0 && (
+                        <div
+                            className={`${styles.finderItem} ${styles.folderItem}`}
+                            onClick={() => setActiveUser('__anonymous__')}
+                        >
+                            <div className={styles.folderIcon}>
+                                <FolderOpen size={40} strokeWidth={1} />
+                            </div>
+                            <span className={styles.finderName}>Anonymous</span>
+                            <span className={styles.finderMeta}>{orphanDocs.length} doc{orphanDocs.length !== 1 ? 's' : ''}</span>
+                        </div>
+                    )}
                 </div>
-            )}
+            ) : (
+                /* Documents grid inside a user folder */
+                <div className={styles.finderGrid}>
+                    {(activeUser === '__anonymous__' ? orphanDocs : docs.filter(d => d.userId === activeUser)).map(doc => (
+                        <div
+                            key={doc.id}
+                            className={`${styles.finderItem} ${styles.fileItem} ${selected.has(doc.id) ? styles.fileSelected : ''}`}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, doc.id)}
+                            onClick={(e) => {
+                                if (e.metaKey || e.ctrlKey) {
+                                    setSelected(prev => {
+                                        const next = new Set(prev);
+                                        next.has(doc.id) ? next.delete(doc.id) : next.add(doc.id);
+                                        return next;
+                                    });
+                                } else {
+                                    setSelected(new Set([doc.id]));
+                                }
+                            }}
+                        >
+                            {/* Document thumbnail */}
+                            <div className={styles.fileThumb}>
+                                <div className={styles.fileCorner} />
+                                <div className={styles.fileLines}>
+                                    <span className={styles.fileLine} style={{ width: '80%' }} />
+                                    <span className={styles.fileLine} style={{ width: '60%' }} />
+                                    <span className={styles.fileLine} style={{ width: '90%' }} />
+                                    <span className={styles.fileLine} style={{ width: '45%' }} />
+                                    <span className={styles.fileLine} style={{ width: '70%' }} />
+                                </div>
+                                <span className={styles.fileExt}>.md</span>
+                            </div>
 
-            {tab === 'docs' && (
-                <div className={styles.tableWrap}>
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th>Title</th>
-                                <th>Owner</th>
-                                <th>Slug</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {docs.map(d => {
-                                const owner = d.userId ? userMap.get(d.userId) : null;
-                                return (
-                                    <tr key={d.id}>
-                                        <td>
-                                            {editingTitle === d.id ? (
-                                                <span className={styles.inlineEdit}>
-                                                    <input
-                                                        className={styles.inlineInput}
-                                                        value={titleValue}
-                                                        onChange={e => setTitleValue(e.target.value)}
-                                                        onKeyDown={e => { if (e.key === 'Enter') handleSaveTitle(d.id); if (e.key === 'Escape') setEditingTitle(null); }}
-                                                        autoFocus
-                                                    />
-                                                    <button className={styles.inlineOk} onClick={() => handleSaveTitle(d.id)}><Check size={12} /></button>
-                                                    <button className={styles.inlineCancel} onClick={() => setEditingTitle(null)}><X size={12} /></button>
-                                                </span>
-                                            ) : (
-                                                <span className={styles.editableCell} onClick={() => { setEditingTitle(d.id); setTitleValue(d.title || ''); }}>
-                                                    {d.title || 'Untitled'} <Pencil size={10} className={styles.editHint} />
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td>{owner?.email || owner?.name || d.userId || 'Anonymous'}</td>
-                                        <td>
-                                            {editingSlug === d.id ? (
-                                                <span className={styles.inlineEdit}>
-                                                    <input
-                                                        className={styles.inlineInput}
-                                                        value={slugValue}
-                                                        onChange={e => setSlugValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                                                        onKeyDown={e => { if (e.key === 'Enter') handleSaveSlug(d.id); if (e.key === 'Escape') setEditingSlug(null); }}
-                                                        placeholder="custom-slug"
-                                                        autoFocus
-                                                    />
-                                                    <button className={styles.inlineOk} onClick={() => handleSaveSlug(d.id)}><Check size={12} /></button>
-                                                    <button className={styles.inlineCancel} onClick={() => setEditingSlug(null)}><X size={12} /></button>
-                                                </span>
-                                            ) : (
-                                                <span className={styles.editableCell} onClick={() => { setEditingSlug(d.id); setSlugValue(d.slug || ''); }}>
-                                                    {d.slug ? <code className={styles.slug}>/p/{d.slug}</code> : <span className={styles.muted}>none</span>}
-                                                    <Pencil size={10} className={styles.editHint} />
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td>{new Date(d.createdAt).toLocaleDateString()}</td>
-                                        <td className={styles.actionCell}>
-                                            <Link href={`/s/${d.id}`} className={styles.actionBtn} title="View"><ExternalLink size={13} /></Link>
-                                            <Link href={`/s/${d.id}/edit`} className={styles.actionBtn} title="Edit content"><Pencil size={13} /></Link>
-                                            <button className={styles.dangerBtn} onClick={() => handleDeleteDoc(d.id)} title="Delete"><Trash2 size={13} /></button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                            {/* Title - editable */}
+                            {editingDoc === doc.id ? (
+                                <div className={styles.editForm} onClick={e => e.stopPropagation()}>
+                                    <input
+                                        className={styles.editInput}
+                                        value={editTitle}
+                                        onChange={e => setEditTitle(e.target.value)}
+                                        placeholder="Title"
+                                        autoFocus
+                                        onKeyDown={e => { if (e.key === 'Enter') handleSaveDoc(doc.id); if (e.key === 'Escape') setEditingDoc(null); }}
+                                    />
+                                    <input
+                                        className={styles.editInput}
+                                        value={editSlug}
+                                        onChange={e => setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                                        placeholder="slug"
+                                        onKeyDown={e => { if (e.key === 'Enter') handleSaveDoc(doc.id); if (e.key === 'Escape') setEditingDoc(null); }}
+                                    />
+                                    <div className={styles.editBtns}>
+                                        <button className={styles.editSave} onClick={() => handleSaveDoc(doc.id)}><Check size={12} /></button>
+                                        <button className={styles.editCancel} onClick={() => setEditingDoc(null)}><X size={12} /></button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <span className={styles.finderName} title={doc.title || 'Untitled'}>
+                                    {doc.title || 'Untitled'}
+                                </span>
+                            )}
+
+                            {doc.slug && editingDoc !== doc.id && (
+                                <span className={styles.fileSlug}>/p/{doc.slug}</span>
+                            )}
+
+                            <span className={styles.finderMeta}>
+                                {new Date(doc.createdAt).toLocaleDateString()}
+                            </span>
+
+                            {/* Hover actions */}
+                            <div className={styles.fileActions} onClick={e => e.stopPropagation()}>
+                                <a href={`/s/${doc.id}`} target="_blank" rel="noopener noreferrer" className={styles.fileActionBtn} title="Open in new tab">
+                                    <ExternalLink size={13} />
+                                </a>
+                                <a href={`/s/${doc.id}/edit`} target="_blank" rel="noopener noreferrer" className={styles.fileActionBtn} title="Edit content">
+                                    <Pencil size={13} />
+                                </a>
+                                <button
+                                    className={styles.fileActionBtn}
+                                    title="Rename"
+                                    onClick={() => { setEditingDoc(doc.id); setEditTitle(doc.title || ''); setEditSlug(doc.slug || ''); }}
+                                >
+                                    <FileText size={13} />
+                                </button>
+                                <button
+                                    className={`${styles.fileActionBtn} ${styles.fileActionDanger}`}
+                                    title="Delete"
+                                    onClick={() => handleDeleteDoc(doc.id)}
+                                >
+                                    <Trash2 size={13} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+
+                    {(activeUser === '__anonymous__' ? orphanDocs : docs.filter(d => d.userId === activeUser)).length === 0 && (
+                        <div className={styles.emptyFolder}>
+                            <FileText size={32} strokeWidth={1} />
+                            <p>No documents</p>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
