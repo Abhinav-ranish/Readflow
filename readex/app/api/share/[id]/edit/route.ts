@@ -3,8 +3,20 @@ import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    const session = await auth();
-    const userId = (session?.user as any)?.dbId;
+    // Support both session cookies and Bearer token auth
+    let userId: string | undefined;
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+        const apiKey = authHeader.slice(7).trim();
+        if (apiKey) {
+            const keyUser = await db.getUserByApiKey(apiKey);
+            if (keyUser) userId = keyUser.id;
+        }
+    }
+    if (!userId) {
+        const session = await auth();
+        userId = (session?.user as any)?.dbId;
+    }
     if (!userId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
