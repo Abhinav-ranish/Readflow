@@ -12,6 +12,7 @@ import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 import TemplateSelector from '@/components/TemplateSelector';
 import LayoutToggle from '@/components/LayoutToggle';
 import FirstRunGuide from '@/components/FirstRunGuide';
+import AiAssistant from '@/components/AiAssistant';
 import type { DesktopLayout } from '@/components/LayoutToggle';
 import clsx from 'clsx';
 
@@ -177,6 +178,11 @@ export default function Home() {
       />
 
       {markdown === DEFAULT_MARKDOWN && <FirstRunGuide />}
+
+      <AiAssistant
+        content={markdown}
+        onInsert={(text) => setMarkdown(prev => prev + '\n\n' + text)}
+      />
     </main>
   );
 }

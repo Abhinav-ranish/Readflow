@@ -21,6 +21,10 @@ export interface UserEntry {
     provider: string;
     providerId: string;
     createdAt: number;
+    plan?: 'free' | 'pro';
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    aiCreditsUsed?: number;
 }
 
 export interface CommentEntry {
@@ -46,7 +50,7 @@ interface DBAdapter {
     updateReadme(id: string, content: string, userId: string, title?: string): Promise<boolean>;
     setSlug(id: string, slug: string, userId: string): Promise<boolean>;
     checkRateLimit(ip: string): Promise<boolean>;
-    getReadmesByUser(userId: string): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string }[]>;
+    getReadmesByUser(userId: string): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean }[]>;
     deleteReadme(id: string, userId: string): Promise<boolean>;
     // Comments
     addComment(readmeId: string, authorName: string, content: string, userId?: string): Promise<string>;
@@ -60,6 +64,13 @@ interface DBAdapter {
     // Users
     findOrCreateUser(email: string, name: string | undefined, image: string | undefined, provider: string, providerId: string): Promise<UserEntry>;
     getUser(id: string): Promise<UserEntry | null>;
+    // Billing
+    setUserPlan(userId: string, plan: 'free' | 'pro', stripeCustomerId?: string, stripeSubscriptionId?: string): Promise<void>;
+    incrementAiCredits(userId: string): Promise<number>;
+    resetAiCredits(userId: string): Promise<void>;
+    // Organization
+    setDocFolder(id: string, userId: string, folder: string | null): Promise<boolean>;
+    setDocPinned(id: string, userId: string, pinned: boolean): Promise<boolean>;
 }
 
 // --- Crypto helpers ---
@@ -245,23 +256,28 @@ const localAdapter: DBAdapter = {
         }
     },
 
-    async getReadmesByUser(userId): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string }[]> {
-        const results: { id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string }[] = [];
+    async getReadmesByUser(userId): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean }[]> {
+        const results: { id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean }[] = [];
         if (process.env.NODE_ENV === 'development') {
             const store = readStore();
             for (const [id, entry] of Object.entries(store.readmes) as [string, any][]) {
                 if (entry.userId === userId) {
-                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug });
+                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug, folder: entry.folder, pinned: entry.pinned });
                 }
             }
         } else {
             for (const [id, entry] of memoryStore.readmes.entries()) {
                 if (entry.userId === userId) {
-                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug });
+                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug, folder: entry.folder, pinned: entry.pinned });
                 }
             }
         }
-        return results.sort((a, b) => b.createdAt - a.createdAt);
+        // Pinned first, then by date
+        return results.sort((a, b) => {
+            if (a.pinned && !b.pinned) return -1;
+            if (!a.pinned && b.pinned) return 1;
+            return b.createdAt - a.createdAt;
+        });
     },
 
     async deleteReadme(id, userId): Promise<boolean> {
@@ -392,6 +408,83 @@ const localAdapter: DBAdapter = {
         if (!user) return null;
         return { id, ...user };
     },
+
+    async setUserPlan(userId, plan, stripeCustomerId, stripeSubscriptionId): Promise<void> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            const user = store.users[userId];
+            if (user) {
+                user.plan = plan;
+                if (stripeCustomerId) user.stripeCustomerId = stripeCustomerId;
+                if (stripeSubscriptionId) user.stripeSubscriptionId = stripeSubscriptionId;
+                if (plan === 'free') user.aiCreditsUsed = 0;
+                writeStore(store);
+            }
+        } else {
+            const user = memoryStore.users.get(userId);
+            if (user) {
+                user.plan = plan;
+                if (stripeCustomerId) user.stripeCustomerId = stripeCustomerId;
+                if (stripeSubscriptionId) user.stripeSubscriptionId = stripeSubscriptionId;
+            }
+        }
+    },
+
+    async incrementAiCredits(userId): Promise<number> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            const user = store.users[userId];
+            if (!user) return 0;
+            user.aiCreditsUsed = (user.aiCreditsUsed || 0) + 1;
+            writeStore(store);
+            return user.aiCreditsUsed;
+        }
+        const user = memoryStore.users.get(userId);
+        if (!user) return 0;
+        user.aiCreditsUsed = (user.aiCreditsUsed || 0) + 1;
+        return user.aiCreditsUsed;
+    },
+
+    async resetAiCredits(userId): Promise<void> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            const user = store.users[userId];
+            if (user) { user.aiCreditsUsed = 0; writeStore(store); }
+        } else {
+            const user = memoryStore.users.get(userId);
+            if (user) user.aiCreditsUsed = 0;
+        }
+    },
+
+    async setDocFolder(id, userId, folder): Promise<boolean> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            const entry = store.readmes[id];
+            if (!entry || entry.userId !== userId) return false;
+            entry.folder = folder;
+            writeStore(store);
+            return true;
+        }
+        const entry = memoryStore.readmes.get(id);
+        if (!entry || entry.userId !== userId) return false;
+        entry.folder = folder;
+        return true;
+    },
+
+    async setDocPinned(id, userId, pinned): Promise<boolean> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            const entry = store.readmes[id];
+            if (!entry || entry.userId !== userId) return false;
+            entry.pinned = pinned;
+            writeStore(store);
+            return true;
+        }
+        const entry = memoryStore.readmes.get(id);
+        if (!entry || entry.userId !== userId) return false;
+        entry.pinned = pinned;
+        return true;
+    },
 };
 
 // --- 2. Cloudflare D1 Adapter (Production via REST) ---
@@ -436,6 +529,13 @@ async function ensureD1Tables() {
     await safeAlter(`ALTER TABLE readmes ADD COLUMN user_id TEXT`);
     await safeAlter(`ALTER TABLE readmes ADD COLUMN title TEXT`);
     await safeAlter(`ALTER TABLE readmes ADD COLUMN slug TEXT`);
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN folder TEXT`);
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN pinned INTEGER DEFAULT 0`);
+    // User plan columns
+    await safeAlter(`ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'free'`);
+    await safeAlter(`ALTER TABLE users ADD COLUMN stripe_customer_id TEXT`);
+    await safeAlter(`ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT`);
+    await safeAlter(`ALTER TABLE users ADD COLUMN ai_credits_used INTEGER DEFAULT 0`);
 }
 
 // Track init
@@ -548,7 +648,7 @@ const cloudflareAdapter: DBAdapter = {
     async getReadmesByUser(userId) {
         await initD1();
         const results = await queryD1(
-            `SELECT id, title, created_at, password_hash, expires_at, slug FROM readmes WHERE user_id = ? ORDER BY created_at DESC`,
+            `SELECT id, title, created_at, password_hash, expires_at, slug, folder, pinned FROM readmes WHERE user_id = ? ORDER BY pinned DESC, created_at DESC`,
             [userId]
         );
         return results.map((r: any) => ({
@@ -558,6 +658,8 @@ const cloudflareAdapter: DBAdapter = {
             hasPassword: !!r.password_hash,
             expiresAt: r.expires_at || undefined,
             slug: r.slug || undefined,
+            folder: r.folder || undefined,
+            pinned: !!r.pinned,
         }));
     },
 
@@ -645,7 +747,46 @@ const cloudflareAdapter: DBAdapter = {
         const results = await queryD1(`SELECT * FROM users WHERE id = ? LIMIT 1`, [id]);
         if (results.length === 0) return null;
         const u = results[0];
-        return { id: u.id, email: u.email, name: u.name, image: u.image, provider: u.provider, providerId: u.provider_id, createdAt: u.created_at };
+        return { id: u.id, email: u.email, name: u.name, image: u.image, provider: u.provider, providerId: u.provider_id, createdAt: u.created_at, plan: u.plan || 'free', stripeCustomerId: u.stripe_customer_id, stripeSubscriptionId: u.stripe_subscription_id, aiCreditsUsed: u.ai_credits_used || 0 };
+    },
+
+    async setUserPlan(userId, plan, stripeCustomerId, stripeSubscriptionId): Promise<void> {
+        await initD1();
+        const sets = ['plan = ?'];
+        const params: any[] = [plan];
+        if (stripeCustomerId) { sets.push('stripe_customer_id = ?'); params.push(stripeCustomerId); }
+        if (stripeSubscriptionId) { sets.push('stripe_subscription_id = ?'); params.push(stripeSubscriptionId); }
+        if (plan === 'free') { sets.push('ai_credits_used = 0'); }
+        params.push(userId);
+        await queryD1(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params);
+    },
+
+    async incrementAiCredits(userId): Promise<number> {
+        await initD1();
+        await queryD1(`UPDATE users SET ai_credits_used = COALESCE(ai_credits_used, 0) + 1 WHERE id = ?`, [userId]);
+        const results = await queryD1(`SELECT ai_credits_used FROM users WHERE id = ?`, [userId]);
+        return results[0]?.ai_credits_used || 0;
+    },
+
+    async resetAiCredits(userId): Promise<void> {
+        await initD1();
+        await queryD1(`UPDATE users SET ai_credits_used = 0 WHERE id = ?`, [userId]);
+    },
+
+    async setDocFolder(id, userId, folder): Promise<boolean> {
+        await initD1();
+        const results = await queryD1(`SELECT user_id FROM readmes WHERE id = ? LIMIT 1`, [id]);
+        if (results.length === 0 || results[0].user_id !== userId) return false;
+        await queryD1(`UPDATE readmes SET folder = ? WHERE id = ?`, [folder, id]);
+        return true;
+    },
+
+    async setDocPinned(id, userId, pinned): Promise<boolean> {
+        await initD1();
+        const results = await queryD1(`SELECT user_id FROM readmes WHERE id = ? LIMIT 1`, [id]);
+        if (results.length === 0 || results[0].user_id !== userId) return false;
+        await queryD1(`UPDATE readmes SET pinned = ? WHERE id = ?`, [pinned ? 1 : 0, id]);
+        return true;
     },
 };
 

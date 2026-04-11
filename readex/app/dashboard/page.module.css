@@ -64,6 +64,12 @@
     font-weight: 600;
 }
 
+.headerRight {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .newBtn {
     display: inline-flex;
     align-items: center;
@@ -80,6 +86,99 @@
 
 .newBtn:hover {
     background-color: var(--accent-primary);
+}
+
+.upgradeBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
+    color: #fff;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.upgradeBtn:hover {
+    opacity: 0.9;
+}
+
+.proBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #f59e0b;
+    background-color: rgba(245, 158, 11, 0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.upgradeSuccess {
+    padding: 10px 16px;
+    margin-bottom: 1rem;
+    background-color: rgba(63, 185, 80, 0.1);
+    border: 1px solid rgba(63, 185, 80, 0.2);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--success);
+}
+
+.folderBar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.folderTab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    color: var(--fg-secondary);
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.12s;
+}
+
+.folderTab:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+    color: var(--fg-primary);
+}
+
+.folderTab.activeTab {
+    background-color: rgba(56, 139, 253, 0.1);
+    border-color: rgba(56, 139, 253, 0.3);
+    color: var(--accent-primary);
+}
+
+.folderLabel {
+    font-size: 0.7rem;
+    color: var(--fg-muted);
+    background-color: rgba(255, 255, 255, 0.04);
+    padding: 1px 6px;
+    border-radius: 3px;
+}
+
+.pinned {
+    border-color: rgba(245, 158, 11, 0.2) !important;
+}
+
+.pinIcon {
+    color: #f59e0b;
+    flex-shrink: 0;
 }
 
 .empty {
