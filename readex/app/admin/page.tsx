@@ -27,7 +27,7 @@ interface Doc {
     preview?: string;
 }
 
-function DocFileItem({ doc, selected, editingDoc, editTitle, editSlug, setEditTitle, setEditSlug, setEditingDoc, setSelected, handleSaveDoc, handleDeleteDoc, handleDragStart }: {
+function DocFileItem({ doc, selected, editingDoc, editTitle, editSlug, setEditTitle, setEditSlug, setEditingDoc, setSelected, handleSaveDoc, handleDeleteDoc, handleDragStart, handleDragEnd }: {
     doc: Doc;
     selected: Set<string>;
     editingDoc: string | null;
@@ -40,6 +40,7 @@ function DocFileItem({ doc, selected, editingDoc, editTitle, editSlug, setEditTi
     handleSaveDoc: (id: string) => void;
     handleDeleteDoc: (id: string) => void;
     handleDragStart: (e: React.DragEvent, id: string) => void;
+    handleDragEnd: () => void;
 }) {
     // Build preview lines from content
     const previewLines = (doc.preview || '').replace(/[#*`>\-\[\]()!]/g, '').split('\n').filter(l => l.trim()).slice(0, 6);
@@ -49,6 +50,7 @@ function DocFileItem({ doc, selected, editingDoc, editTitle, editSlug, setEditTi
             className={`${styles.finderItem} ${styles.fileItem} ${selected.has(doc.id) ? styles.fileSelected : ''}`}
             draggable
             onDragStart={(e) => handleDragStart(e, doc.id)}
+            onDragEnd={handleDragEnd}
             onClick={(e) => {
                 if (e.metaKey || e.ctrlKey) {
                     setSelected(prev => {
@@ -230,14 +232,23 @@ export default function AdminPage() {
         }
     };
 
+    const [isDragging, setIsDragging] = useState(false);
+
     const handleDragStart = (e: React.DragEvent, docId: string) => {
         e.dataTransfer.setData('text/plain', docId);
         e.dataTransfer.effectAllowed = 'move';
+        setIsDragging(true);
+    };
+
+    const handleDragEnd = () => {
+        setIsDragging(false);
+        setDragOverUser(null);
     };
 
     const handleDropOnUser = async (e: React.DragEvent, userId: string) => {
         e.preventDefault();
         setDragOverUser(null);
+        setIsDragging(false);
         const docId = e.dataTransfer.getData('text/plain');
         if (!docId) return;
         setActiveUser(userId);
@@ -248,7 +259,7 @@ export default function AdminPage() {
     const docItemProps = {
         selected, editingDoc, editTitle, editSlug,
         setEditTitle, setEditSlug, setEditingDoc, setSelected,
-        handleSaveDoc, handleDeleteDoc, handleDragStart,
+        handleSaveDoc, handleDeleteDoc, handleDragStart, handleDragEnd,
     };
 
     if (status === 'loading' || loading) {
@@ -318,7 +329,7 @@ export default function AdminPage() {
                             <div
                                 key={u.id}
                                 className={`${styles.finderItem} ${styles.folderItem} ${dragOverUser === u.id ? styles.dropTarget : ''}`}
-                                onClick={() => setActiveUser(u.id)}
+                                onClick={() => { if (!isDragging) setActiveUser(u.id); }}
                                 onDragOver={(e) => { e.preventDefault(); setDragOverUser(u.id); }}
                                 onDragLeave={() => setDragOverUser(null)}
                                 onDrop={(e) => handleDropOnUser(e, u.id)}
