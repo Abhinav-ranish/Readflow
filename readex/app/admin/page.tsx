@@ -329,7 +329,7 @@ export default function AdminPage() {
                             <div
                                 key={u.id}
                                 className={`${styles.finderItem} ${styles.folderItem} ${dragOverUser === u.id ? styles.dropTarget : ''}`}
-                                onClick={() => { if (!isDragging) setActiveUser(u.id); }}
+                                onDoubleClick={() => setActiveUser(u.id)}
                                 onDragOver={(e) => { e.preventDefault(); setDragOverUser(u.id); }}
                                 onDragLeave={() => setDragOverUser(null)}
                                 onDrop={(e) => handleDropOnUser(e, u.id)}
