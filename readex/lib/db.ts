@@ -25,6 +25,7 @@ export interface UserEntry {
     stripeCustomerId?: string;
     stripeSubscriptionId?: string;
     aiCreditsUsed?: number;
+    apiKey?: string;
 }
 
 export interface CommentEntry {
@@ -71,6 +72,16 @@ interface DBAdapter {
     // Organization
     setDocFolder(id: string, userId: string, folder: string | null): Promise<boolean>;
     setDocPinned(id: string, userId: string, pinned: boolean): Promise<boolean>;
+    // Admin
+    getAllUsers(): Promise<UserEntry[]>;
+    getAllDocs(): Promise<{ id: string; title?: string; userId?: string; createdAt: number; slug?: string; folder?: string; pinned?: boolean }[]>;
+    adminDeleteDoc(id: string): Promise<boolean>;
+    adminSetSlug(id: string, slug: string | null): Promise<boolean>;
+    adminSetTitle(id: string, title: string): Promise<boolean>;
+    adminDeleteUser(id: string): Promise<boolean>;
+    // API keys
+    setApiKey(userId: string, apiKey: string): Promise<void>;
+    getUserByApiKey(apiKey: string): Promise<UserEntry | null>;
 }
 
 // --- Crypto helpers ---
@@ -485,6 +496,115 @@ const localAdapter: DBAdapter = {
         entry.pinned = pinned;
         return true;
     },
+
+    async getAllUsers(): Promise<UserEntry[]> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            return Object.entries(store.users).map(([id, u]: [string, any]) => ({ id, ...u }));
+        }
+        return Array.from(memoryStore.users.entries()).map(([id, u]) => ({ id, ...u }));
+    },
+
+    async getAllDocs() {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            return Object.entries(store.readmes).map(([id, r]: [string, any]) => ({
+                id, title: r.title, userId: r.userId, createdAt: r.createdAt, slug: r.slug, folder: r.folder, pinned: r.pinned,
+            }));
+        }
+        return Array.from(memoryStore.readmes.entries()).map(([id, r]) => ({
+            id, title: r.title, userId: r.userId, createdAt: r.createdAt, slug: r.slug, folder: r.folder, pinned: r.pinned,
+        }));
+    },
+
+    async adminDeleteDoc(id): Promise<boolean> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            if (!store.readmes[id]) return false;
+            delete store.readmes[id];
+            delete store.versions[id];
+            delete store.comments[id];
+            delete store.views[id];
+            writeStore(store);
+            return true;
+        }
+        const entry = memoryStore.readmes.get(id);
+        if (!entry) return false;
+        memoryStore.readmes.delete(id);
+        return true;
+    },
+
+    async adminSetSlug(id, slug): Promise<boolean> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            const entry = store.readmes[id];
+            if (!entry) return false;
+            if (slug) {
+                for (const [oid, oentry] of Object.entries(store.readmes) as [string, any][]) {
+                    if (oid !== id && oentry.slug === slug) return false;
+                }
+            }
+            entry.slug = slug || undefined;
+            writeStore(store);
+            return true;
+        }
+        const entry = memoryStore.readmes.get(id);
+        if (!entry) return false;
+        entry.slug = slug || undefined;
+        return true;
+    },
+
+    async adminSetTitle(id, title): Promise<boolean> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            const entry = store.readmes[id];
+            if (!entry) return false;
+            entry.title = title;
+            writeStore(store);
+            return true;
+        }
+        const entry = memoryStore.readmes.get(id);
+        if (!entry) return false;
+        entry.title = title;
+        return true;
+    },
+
+    async adminDeleteUser(id): Promise<boolean> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            if (!store.users[id]) return false;
+            delete store.users[id];
+            writeStore(store);
+            return true;
+        }
+        if (!memoryStore.users.has(id)) return false;
+        memoryStore.users.delete(id);
+        return true;
+    },
+
+    async setApiKey(userId, apiKey): Promise<void> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            if (store.users[userId]) { store.users[userId].apiKey = apiKey; writeStore(store); }
+        } else {
+            const user = memoryStore.users.get(userId);
+            if (user) user.apiKey = apiKey;
+        }
+    },
+
+    async getUserByApiKey(apiKey): Promise<UserEntry | null> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            for (const [id, u] of Object.entries(store.users) as [string, any][]) {
+                if (u.apiKey === apiKey) return { id, ...u };
+            }
+            return null;
+        }
+        for (const [id, u] of memoryStore.users.entries()) {
+            if (u.apiKey === apiKey) return { id, ...u };
+        }
+        return null;
+    },
 };
 
 // --- 2. Cloudflare D1 Adapter (Production via REST) ---
@@ -787,6 +907,75 @@ const cloudflareAdapter: DBAdapter = {
         if (results.length === 0 || results[0].user_id !== userId) return false;
         await queryD1(`UPDATE readmes SET pinned = ? WHERE id = ?`, [pinned ? 1 : 0, id]);
         return true;
+    },
+
+    async getAllUsers(): Promise<UserEntry[]> {
+        await initD1();
+        const results = await queryD1(`SELECT * FROM users ORDER BY created_at DESC`);
+        return results.map((u: any) => ({
+            id: u.id, email: u.email, name: u.name, image: u.image, provider: u.provider,
+            providerId: u.provider_id, createdAt: u.created_at, plan: u.plan || 'free',
+            stripeCustomerId: u.stripe_customer_id, stripeSubscriptionId: u.stripe_subscription_id,
+            aiCreditsUsed: u.ai_credits_used || 0,
+        }));
+    },
+
+    async getAllDocs() {
+        await initD1();
+        const results = await queryD1(`SELECT id, title, user_id, created_at, slug, folder, pinned FROM readmes ORDER BY created_at DESC`);
+        return results.map((r: any) => ({
+            id: r.id, title: r.title, userId: r.user_id, createdAt: r.created_at,
+            slug: r.slug, folder: r.folder, pinned: !!r.pinned,
+        }));
+    },
+
+    async adminDeleteDoc(id): Promise<boolean> {
+        await initD1();
+        const results = await queryD1(`SELECT id FROM readmes WHERE id = ? LIMIT 1`, [id]);
+        if (results.length === 0) return false;
+        await queryD1(`DELETE FROM readmes WHERE id = ?`, [id]);
+        await queryD1(`DELETE FROM comments WHERE readme_id = ?`, [id]);
+        await queryD1(`DELETE FROM readme_versions WHERE readme_id = ?`, [id]);
+        await queryD1(`DELETE FROM readme_views WHERE readme_id = ?`, [id]);
+        return true;
+    },
+
+    async adminSetSlug(id, slug): Promise<boolean> {
+        await initD1();
+        if (slug) {
+            const existing = await queryD1(`SELECT id FROM readmes WHERE slug = ? AND id != ? LIMIT 1`, [slug, id]);
+            if (existing.length > 0) return false;
+        }
+        await queryD1(`UPDATE readmes SET slug = ? WHERE id = ?`, [slug || null, id]);
+        return true;
+    },
+
+    async adminSetTitle(id, title): Promise<boolean> {
+        await initD1();
+        await queryD1(`UPDATE readmes SET title = ? WHERE id = ?`, [title, id]);
+        return true;
+    },
+
+    async adminDeleteUser(id): Promise<boolean> {
+        await initD1();
+        const results = await queryD1(`SELECT id FROM users WHERE id = ? LIMIT 1`, [id]);
+        if (results.length === 0) return false;
+        await queryD1(`DELETE FROM users WHERE id = ?`, [id]);
+        return true;
+    },
+
+    async setApiKey(userId, apiKey): Promise<void> {
+        await initD1();
+        await safeAlter(`ALTER TABLE users ADD COLUMN api_key TEXT`);
+        await queryD1(`UPDATE users SET api_key = ? WHERE id = ?`, [apiKey, userId]);
+    },
+
+    async getUserByApiKey(apiKey): Promise<UserEntry | null> {
+        await initD1();
+        const results = await queryD1(`SELECT * FROM users WHERE api_key = ? LIMIT 1`, [apiKey]);
+        if (results.length === 0) return null;
+        const u = results[0];
+        return { id: u.id, email: u.email, name: u.name, image: u.image, provider: u.provider, providerId: u.provider_id, createdAt: u.created_at, plan: u.plan || 'free', apiKey: u.api_key };
     },
 };
 
