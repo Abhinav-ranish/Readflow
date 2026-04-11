@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 
+// Default template that ships with the editor — dedup shares of unmodified content
+const DEFAULT_CONTENT = `# Welcome to Readflow
+
+Start typing in the editor to the left to see your changes appear here instantly.
+
+## Features
+- **Markdown Support**: Headers, lists, code blocks, and more.
+- **Live Preview**: See what you write in real-time.
+- **Private Sharing**: Share a read-only link instantly.
+
+\`\`\`javascript
+console.log("Happy coding!");
+\`\`\`
+`;
+
+const DEFAULT_SLUG = '_default-readme';
+let cachedDefaultId: string | null = null;
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
@@ -9,6 +27,30 @@ export async function POST(request: NextRequest) {
 
         if (!content || typeof content !== 'string') {
             return NextResponse.json({ error: 'Invalid content' }, { status: 400 });
+        }
+
+        // Dedup: if content is the unmodified default template, return existing shared doc
+        if (content.trim() === DEFAULT_CONTENT.trim() && !password && !expiresIn && !upsertSlug) {
+            const url = new URL(request.url);
+            // Try cache first
+            if (cachedDefaultId) {
+                const existing = await db.getReadme(cachedDefaultId);
+                if (existing) {
+                    return NextResponse.json({ id: cachedDefaultId, url: `${url.origin}/s/${cachedDefaultId}`, deduplicated: true });
+                }
+                cachedDefaultId = null;
+            }
+            // Try by slug
+            const bySlug = await db.getReadmeBySlug(DEFAULT_SLUG);
+            if (bySlug) {
+                cachedDefaultId = bySlug.id;
+                return NextResponse.json({ id: bySlug.id, url: `${url.origin}/s/${bySlug.id}`, deduplicated: true });
+            }
+            // First time — create the canonical default doc (falls through to normal create with slug)
+            const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
+            const id = await db.saveReadme(content, ip, 'Untitled', { slug: DEFAULT_SLUG });
+            cachedDefaultId = id;
+            return NextResponse.json({ id, url: `${url.origin}/s/${id}`, deduplicated: true });
         }
 
         const cleanTitle = (typeof title === 'string' && title.trim()) ? title.trim().slice(0, 100) : undefined;
