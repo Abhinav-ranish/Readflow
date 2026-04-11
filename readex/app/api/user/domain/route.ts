@@ -13,11 +13,12 @@ export async function GET() {
     const userId = (session?.user as any)?.dbId;
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const user = await db.getUser(userId);
-    const tier: PlanTier = (user as any)?.plan || 'free';
-    if (!canUseFeature(tier, 'customDomain')) {
-        return NextResponse.json({ error: 'Custom domains require Pro plan' }, { status: 403 });
-    }
+    // PREMIUM DISABLED — custom domains free for now
+    // const user = await db.getUser(userId);
+    // const tier: PlanTier = (user as any)?.plan || 'free';
+    // if (!canUseFeature(tier, 'customDomain')) {
+    //     return NextResponse.json({ error: 'Custom domains require Pro plan' }, { status: 403 });
+    // }
 
     // Return current domain config (stored as slug-based for now)
     return NextResponse.json({
@@ -31,11 +32,12 @@ export async function POST(request: NextRequest) {
     const userId = (session?.user as any)?.dbId;
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const user = await db.getUser(userId);
-    const tier: PlanTier = (user as any)?.plan || 'free';
-    if (!canUseFeature(tier, 'customDomain')) {
-        return NextResponse.json({ error: 'Custom domains require Pro plan' }, { status: 403 });
-    }
+    // PREMIUM DISABLED — custom domains free for now
+    // const user = await db.getUser(userId);
+    // const tier: PlanTier = (user as any)?.plan || 'free';
+    // if (!canUseFeature(tier, 'customDomain')) {
+    //     return NextResponse.json({ error: 'Custom domains require Pro plan' }, { status: 403 });
+    // }
 
     const { domain } = await request.json();
     if (!domain || typeof domain !== 'string') {

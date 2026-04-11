@@ -6,6 +6,7 @@ import type { PlanTier } from '@/lib/billing';
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
 type AiCommand = 'summarize' | 'expand' | 'fix-grammar' | 'translate' | 'generate-table' | 'polish' | 'generate-from-url' | 'chat';
 
@@ -72,8 +73,29 @@ async function callAnthropic(systemPrompt: string, userContent: string): Promise
     return data.content[0]?.text || '';
 }
 
+async function callGemini(systemPrompt: string, userContent: string): Promise<string> {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ parts: [{ text: userContent }] }],
+            generationConfig: { maxOutputTokens: 4000, temperature: 0.7 },
+        }),
+    });
+
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Gemini error: ${err}`);
+    }
+
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
 async function callAI(systemPrompt: string, userContent: string): Promise<string> {
     if (ANTHROPIC_KEY) return callAnthropic(systemPrompt, userContent);
+    if (GEMINI_KEY) return callGemini(systemPrompt, userContent);
     if (OPENAI_KEY) return callOpenAI(systemPrompt, userContent);
     throw new Error('No AI provider configured');
 }
@@ -85,21 +107,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check plan
-    const user = await db.getUser(userId);
-    const tier: PlanTier = (user as any)?.plan || 'free';
-    const limits = getPlanLimits(tier);
+    // PREMIUM DISABLED — everything is free for now
+    // const user = await db.getUser(userId);
+    // const tier: PlanTier = (user as any)?.plan || 'free';
+    // const limits = getPlanLimits(tier);
+    //
+    // if (limits.aiCredits === 0) {
+    //     return NextResponse.json({ error: 'AI features require Pro plan' }, { status: 403 });
+    // }
+    //
+    // const currentUsage = (user as any)?.aiCreditsUsed || 0;
+    // if (currentUsage >= limits.aiCredits) {
+    //     return NextResponse.json({ error: 'AI credit limit reached this month' }, { status: 429 });
+    // }
 
-    if (limits.aiCredits === 0) {
-        return NextResponse.json({ error: 'AI features require Pro plan' }, { status: 403 });
-    }
-
-    const currentUsage = (user as any)?.aiCreditsUsed || 0;
-    if (currentUsage >= limits.aiCredits) {
-        return NextResponse.json({ error: 'AI credit limit reached this month' }, { status: 429 });
-    }
-
-    if (!OPENAI_KEY && !ANTHROPIC_KEY) {
+    if (!OPENAI_KEY && !ANTHROPIC_KEY && !GEMINI_KEY) {
         return NextResponse.json({ error: 'AI not configured' }, { status: 503 });
     }
 
@@ -121,8 +143,9 @@ export async function POST(request: NextRequest) {
 
     try {
         const result = await callAI(SYSTEM_PROMPTS[cmd], userContent);
-        await db.incrementAiCredits(userId);
-        return NextResponse.json({ result, creditsUsed: currentUsage + 1, creditsLimit: limits.aiCredits });
+        // PREMIUM DISABLED — skip credit tracking
+        // await db.incrementAiCredits(userId);
+        return NextResponse.json({ result });
     } catch (e) {
         const message = e instanceof Error ? e.message : 'AI request failed';
         return NextResponse.json({ error: message }, { status: 500 });

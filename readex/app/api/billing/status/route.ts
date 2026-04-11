@@ -16,9 +16,11 @@ export async function GET() {
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const tier: PlanTier = (user as any).plan || 'free';
+    // PREMIUM DISABLED — always report pro
+    // const tier: PlanTier = (user as any).plan || 'free';
+    const tier: PlanTier = 'pro';
     const limits = getPlanLimits(tier);
-    const aiCreditsUsed = (user as any).aiCreditsUsed || 0;
+    const aiCreditsUsed = 0; // (user as any).aiCreditsUsed || 0;
 
     return NextResponse.json({
         tier,
