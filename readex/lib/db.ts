@@ -360,12 +360,26 @@ async function queryD1(sql: string, params: any[] = []) {
     return json.result[0]?.results || [];
 }
 
+async function safeAlter(sql: string) {
+    try { await queryD1(sql); } catch (e: any) {
+        // Ignore "duplicate column" errors — column already exists
+        if (e?.message?.includes('duplicate column') || e?.message?.includes('already exists')) return;
+        throw e;
+    }
+}
+
 async function ensureD1Tables() {
     await queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER, ip_address TEXT, title TEXT, password_hash TEXT, expires_at INTEGER, user_id TEXT)`);
     await queryD1(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE, name TEXT, image TEXT, provider TEXT, provider_id TEXT, created_at INTEGER)`);
     await queryD1(`CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, readme_id TEXT, user_id TEXT, author_name TEXT, content TEXT, created_at INTEGER)`);
     await queryD1(`CREATE TABLE IF NOT EXISTS readme_versions (id TEXT PRIMARY KEY, readme_id TEXT, content TEXT, created_at INTEGER)`);
     await queryD1(`CREATE TABLE IF NOT EXISTS readme_views (id INTEGER PRIMARY KEY AUTOINCREMENT, readme_id TEXT, ip TEXT, referrer TEXT, created_at INTEGER)`);
+
+    // Migrate: add columns that may be missing from older table versions
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN password_hash TEXT`);
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN expires_at INTEGER`);
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN user_id TEXT`);
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN title TEXT`);
 }
 
 // Track init
