@@ -197,14 +197,13 @@ export default function AdminPage() {
 
     const handleBulkRename = async () => {
         if (selected.size === 0) return;
-        const prefix = prompt('Enter a prefix to add to all selected document titles (or leave empty to skip):');
-        if (prefix === null) return;
-        const trimmed = prefix.trim();
+        const name = prompt('Enter new name for selected documents:');
+        if (name === null) return;
+        const trimmed = name.trim();
         if (!trimmed) return;
         const ids = [...selected];
-        const results = await Promise.allSettled(ids.map(id => {
-            const doc = docs.find(d => d.id === id);
-            const newTitle = `${trimmed} ${doc?.title || 'Untitled'}`;
+        const results = await Promise.allSettled(ids.map((id, i) => {
+            const newTitle = ids.length === 1 ? trimmed : (i === 0 ? trimmed : `${trimmed} ${i + 1}`);
             return fetch('/api/admin/docs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, title: newTitle }) })
                 .then(res => res.ok ? newTitle : null);
         }));

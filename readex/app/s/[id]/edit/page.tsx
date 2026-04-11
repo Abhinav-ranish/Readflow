@@ -32,22 +32,39 @@ export default function EditPage() {
 
     const fetchDoc = useCallback(async () => {
         try {
+            // Try normal user flow first (versions + user docs)
             const res = await fetch(`/api/share/${docId}/versions`);
-            if (!res.ok) {
-                setError('Document not found or not authorized');
-                return;
+            let loaded = false;
+            if (res.ok) {
+                const versions = await res.json();
+                if (versions.length > 0) {
+                    setContent(versions[0].content);
+                    loaded = true;
+                }
             }
-            const versions = await res.json();
-            if (versions.length > 0) {
-                setContent(versions[0].content);
-            }
-            // Fetch title and slug from doc metadata
+            // Fetch title/slug from user docs
             const docRes = await fetch(`/api/user/docs`);
             if (docRes.ok) {
                 const docs = await docRes.json();
                 const doc = docs.find((d: any) => d.id === docId);
                 if (doc?.title) setTitle(doc.title);
                 if (doc?.slug) setSlug(doc.slug);
+                // If no versions but doc exists in user's list, content is on the main entry
+                if (!loaded && doc) loaded = true;
+            }
+            // Fallback: try admin endpoint (works if user is admin viewing someone else's doc)
+            if (!loaded) {
+                const adminRes = await fetch(`/api/admin/docs/${docId}`);
+                if (adminRes.ok) {
+                    const data = await adminRes.json();
+                    if (data.content) setContent(data.content);
+                    if (data.title) setTitle(data.title);
+                    if (data.slug) setSlug(data.slug);
+                    loaded = true;
+                }
+            }
+            if (!loaded) {
+                setError('Document not found or not authorized');
             }
         } catch {
             setError('Failed to load document');
@@ -65,11 +82,19 @@ export default function EditPage() {
         setSaved(false);
         setError(null);
         try {
-            const res = await fetch(`/api/share/${docId}/edit`, {
+            let res = await fetch(`/api/share/${docId}/edit`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content, title: title || undefined }),
             });
+            // Fallback to admin endpoint if normal edit fails (admin editing another user's doc)
+            if (!res.ok) {
+                res = await fetch(`/api/admin/docs/${docId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content, title: title || undefined }),
+                });
+            }
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
                 throw new Error(data.error || 'Failed to save');
