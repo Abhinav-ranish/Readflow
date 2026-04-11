@@ -4,11 +4,14 @@ import Preview from '@/components/Preview';
 import ForkButton from '@/components/ForkButton';
 import DownloadMenu from '@/components/DownloadMenu';
 import PoweredByFooter from '@/components/PoweredByFooter';
+import CommentSection from '@/components/CommentSection';
+import SharedPageClient from './SharedPageClient';
 import styles from './page.module.css';
 import { notFound } from 'next/navigation';
 import { Lock, Clock } from 'lucide-react';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 
 interface Props {
     params: Promise<{ id: string }>;
@@ -22,17 +25,14 @@ function extractPlainText(markdown: string): string {
         const trimmed = line.trim();
         if (!trimmed || trimmed === '---') continue;
         if (/^```/.test(trimmed)) continue;
-        // Skip headings for description — the title already covers it
         if (/^#{1,6}\s+/.test(trimmed)) continue;
 
-        // Clean metadata lines: **Key:** Value → Key: Value
         const metaMatch = trimmed.match(/^\*\*([^*]+?):\*\*\s*(.+)/);
         if (metaMatch) {
             parts.push(`${metaMatch[1].trim()}: ${metaMatch[2].replace(/[*_~`]/g, '').trim()}`);
             continue;
         }
 
-        // Clean regular lines
         const cleaned = trimmed
             .replace(/[*_~`>]/g, '')
             .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
@@ -87,9 +87,31 @@ export default async function SharedReadmePage({ params }: Props) {
         notFound();
     }
 
-    const { content, title, createdAt } = entry;
+    // Record view
+    const headersList = await headers();
+    const ip = headersList.get('x-forwarded-for') || '127.0.0.1';
+    const referrer = headersList.get('referer') || undefined;
+    db.recordView(id, ip, referrer).catch(() => {});
 
+    const { content, title, createdAt, passwordHash, expiresAt } = entry;
+    const isProtected = !!passwordHash;
     const timeAgo = createdAt ? formatTimeAgo(createdAt) : null;
+    const viewCount = await db.getViewCount(id);
+
+    // If password-protected, render client component that handles unlock
+    if (isProtected) {
+        return (
+            <SharedPageClient
+                docId={id}
+                content={content}
+                title={title}
+                createdAt={createdAt}
+                expiresAt={expiresAt}
+                isProtected={true}
+                viewCount={viewCount}
+            />
+        );
+    }
 
     return (
         <div className={styles.container}>
@@ -114,6 +136,11 @@ export default async function SharedReadmePage({ params }: Props) {
                             <span>{timeAgo}</span>
                         </div>
                     )}
+                    {viewCount > 0 && (
+                        <div className={styles.timeBadge}>
+                            <span>{viewCount} view{viewCount !== 1 ? 's' : ''}</span>
+                        </div>
+                    )}
                 </div>
                 <div className={styles.actions}>
                     <ForkButton content={content} />
@@ -128,6 +155,7 @@ export default async function SharedReadmePage({ params }: Props) {
                     <Preview content={content} />
                 </div>
             </main>
+            <CommentSection docId={id} />
             <PoweredByFooter />
         </div>
     );

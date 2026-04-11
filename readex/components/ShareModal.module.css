@@ -145,6 +145,89 @@
     border-color: var(--fg-secondary);
 }
 
+.advancedToggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--fg-muted);
+    font-size: 0.82rem;
+    margin-bottom: 12px;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: color 0.15s;
+}
+
+.advancedToggle:hover {
+    color: var(--fg-secondary);
+}
+
+.advancedPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 14px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+}
+
+.optionRow {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.optionIcon {
+    color: var(--fg-muted);
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.optionContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.optionLabel {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--fg-secondary);
+}
+
+.optionInput {
+    width: 100%;
+    padding: 7px 10px;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    color: var(--fg-primary);
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.optionInput:focus {
+    border-color: var(--accent-primary);
+}
+
+.optionSelect {
+    width: 100%;
+    padding: 7px 10px;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    color: var(--fg-primary);
+    font-size: 0.85rem;
+    outline: none;
+    cursor: pointer;
+}
+
+.optionSelect:focus {
+    border-color: var(--accent-primary);
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;

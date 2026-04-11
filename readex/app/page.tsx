@@ -11,6 +11,7 @@ import TableOfContents from '@/components/TableOfContents';
 import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 import TemplateSelector from '@/components/TemplateSelector';
 import LayoutToggle from '@/components/LayoutToggle';
+import FirstRunGuide from '@/components/FirstRunGuide';
 import type { DesktopLayout } from '@/components/LayoutToggle';
 import clsx from 'clsx';
 
@@ -70,14 +71,19 @@ export default function Home() {
     setIsModalOpen(true);
   };
 
-  const handleShare = async (title: string) => {
+  const handleShare = async (title: string, password?: string, expiresIn?: number) => {
     setIsSharing(true);
     setShareError(null);
     try {
       const res = await fetch('/api/share', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: markdown, title: title || undefined }),
+        body: JSON.stringify({
+          content: markdown,
+          title: title || undefined,
+          password: password || undefined,
+          expiresIn: expiresIn || undefined,
+        }),
       });
 
       if (!res.ok) {
@@ -169,6 +175,8 @@ export default function Home() {
         onShare={handleShare}
         isSharing={isSharing}
       />
+
+      <FirstRunGuide />
     </main>
   );
 }
