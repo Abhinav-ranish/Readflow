@@ -80,6 +80,7 @@ interface DBAdapter {
     adminSetTitle(id: string, title: string): Promise<boolean>;
     adminDeleteUser(id: string): Promise<boolean>;
     adminReassignDoc(docId: string, newUserId: string | null): Promise<boolean>;
+    adminUpdateContent(id: string, content: string, title?: string): Promise<boolean>;
     // API keys
     setApiKey(userId: string, apiKey: string): Promise<void>;
     getUserByApiKey(apiKey: string): Promise<UserEntry | null>;
@@ -599,6 +600,25 @@ const localAdapter: DBAdapter = {
         return true;
     },
 
+    async adminUpdateContent(id, content, title): Promise<boolean> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            const entry = store.readmes[id];
+            if (!entry) return false;
+            entry.content = content;
+            if (title !== undefined) entry.title = title;
+            if (!store.versions[id]) store.versions[id] = [];
+            store.versions[id].push({ id: nanoid(10), readmeId: id, content, createdAt: Date.now() });
+            writeStore(store);
+            return true;
+        }
+        const doc = memoryStore.readmes.get(id);
+        if (!doc) return false;
+        doc.content = content;
+        if (title !== undefined) doc.title = title;
+        return true;
+    },
+
     async setApiKey(userId, apiKey): Promise<void> {
         if (process.env.NODE_ENV === 'development') {
             const store = readStore();
@@ -986,6 +1006,19 @@ const cloudflareAdapter: DBAdapter = {
         const results = await queryD1(`SELECT id FROM readmes WHERE id = ? LIMIT 1`, [docId]);
         if (results.length === 0) return false;
         await queryD1(`UPDATE readmes SET user_id = ? WHERE id = ?`, [newUserId || null, docId]);
+        return true;
+    },
+
+    async adminUpdateContent(id, content, title): Promise<boolean> {
+        await initD1();
+        const results = await queryD1(`SELECT id FROM readmes WHERE id = ? LIMIT 1`, [id]);
+        if (results.length === 0) return false;
+        const sets = ['content = ?'];
+        const params: any[] = [content];
+        if (title !== undefined) { sets.push('title = ?'); params.push(title); }
+        params.push(id);
+        await queryD1(`UPDATE readmes SET ${sets.join(', ')} WHERE id = ?`, params);
+        await queryD1(`INSERT INTO readme_versions (id, readme_id, content, created_at) VALUES (?, ?, ?, ?)`, [nanoid(10), id, content, Date.now()]);
         return true;
     },
 

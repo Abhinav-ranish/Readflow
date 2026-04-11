@@ -44,15 +44,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         return NextResponse.json({ error: 'Invalid content' }, { status: 400 });
     }
 
-    const entry = await db.getReadme(id);
-    if (!entry) {
-        return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    }
-
-    // Use the doc's actual owner for updateReadme so the version is attributed correctly
-    const updated = await db.updateReadme(id, content, entry.userId || (session?.user as any)?.dbId, title);
+    const updated = await db.adminUpdateContent(id, content, title);
     if (!updated) {
-        return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     return NextResponse.json({ ok: true });
