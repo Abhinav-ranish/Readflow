@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Abril_Fatface, Cabin } from "next/font/google";
 import { Analytics } from '@vercel/analytics/next';
+import SessionProvider from '@/components/SessionProvider';
 import "./globals.css";
+import 'katex/dist/katex.min.css';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -61,7 +63,9 @@ export default function RootLayout({
         <link rel="service-desc" href="/.well-known/openapi.json" type="application/json" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} ${abrilFatface.variable} ${cabin.variable}`}>
-        {children}
+        <SessionProvider>
+          {children}
+        </SessionProvider>
         <Analytics />
       </body>
     </html>

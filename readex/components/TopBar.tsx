@@ -2,6 +2,7 @@
 import React from 'react';
 import { Share2, Link2 } from 'lucide-react';
 import Link from 'next/link';
+import UserMenu from '@/components/UserMenu';
 import styles from './TopBar.module.css';
 
 interface TopBarProps {
@@ -43,6 +44,7 @@ export default function TopBar({ onShare, isSharing, error, lastShareUrl, onShow
                     <Share2 size={16} className={styles.shareIcon} />
                     {isSharing ? 'Sharing...' : 'Share'}
                 </button>
+                <UserMenu />
             </div>
         </header>
     );

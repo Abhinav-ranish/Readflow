@@ -8,3 +8,9 @@ dist
 promo/out
 promo/node_modules
 promo/dist
+/.claude-flow
+/.claude
+CLAUDE.md
+docs/FutureIdeas.md
+/readex/.claude-flow
+/readex/.data
