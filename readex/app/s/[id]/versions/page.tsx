@@ -78,7 +78,7 @@ export default function VersionsPage() {
         <div className={styles.container}>
             <header className={styles.header}>
                 <div className={styles.headerLeft}>
-                    <Link href={`/s/${docId}`} className={styles.backBtn}>
+                    <Link href="/dashboard" className={styles.backBtn}>
                         <ArrowLeft size={16} />
                     </Link>
                     <History size={18} />
