@@ -515,6 +515,84 @@
     margin: 0;
 }
 
+/* Bulk action bar */
+
+.bulkBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    margin-top: 1rem;
+    background-color: rgba(56, 139, 253, 0.08);
+    border: 1px solid rgba(56, 139, 253, 0.2);
+    border-radius: 8px;
+}
+
+.bulkCount {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--accent-primary);
+    margin-right: auto;
+}
+
+.bulkBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    background: none;
+    color: var(--fg-secondary);
+    cursor: pointer;
+    transition: all 0.12s;
+}
+
+.bulkBtn:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: var(--fg-primary);
+}
+
+.bulkDanger {
+    border-color: rgba(248, 81, 73, 0.3);
+    color: #f85149;
+}
+
+.bulkDanger:hover {
+    background-color: rgba(248, 81, 73, 0.12);
+}
+
+.bulkBtnClear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: none;
+    color: var(--fg-muted);
+    cursor: pointer;
+}
+
+.bulkBtnClear:hover {
+    color: var(--fg-primary);
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Marquee selection rectangle */
+
+.marquee {
+    position: fixed;
+    border: 1px solid rgba(56, 139, 253, 0.5);
+    background-color: rgba(56, 139, 253, 0.1);
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 50;
+}
+
 /* Responsive */
 
 @media (max-width: 600px) {
