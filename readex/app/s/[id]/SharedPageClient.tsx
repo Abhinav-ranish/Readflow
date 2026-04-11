@@ -6,7 +6,7 @@ import DownloadMenu from '@/components/DownloadMenu';
 import PoweredByFooter from '@/components/PoweredByFooter';
 import CommentSection from '@/components/CommentSection';
 import PasswordGate from '@/components/PasswordGate';
-import { Lock, Clock } from 'lucide-react';
+import { Lock, Clock, Pencil, History } from 'lucide-react';
 import Link from 'next/link';
 import styles from './page.module.css';
 
@@ -18,6 +18,7 @@ interface SharedPageClientProps {
     expiresAt?: number;
     isProtected: boolean;
     viewCount: number;
+    isOwner?: boolean;
 }
 
 function formatTimeAgo(timestamp: number): string {
@@ -34,7 +35,7 @@ function formatTimeAgo(timestamp: number): string {
     return `${Math.floor(months / 12)}y ago`;
 }
 
-export default function SharedPageClient({ docId, content, title, createdAt, isProtected, viewCount }: SharedPageClientProps) {
+export default function SharedPageClient({ docId, content, title, createdAt, isProtected, viewCount, isOwner }: SharedPageClientProps) {
     const [unlocked, setUnlocked] = useState(false);
 
     useEffect(() => {
@@ -79,6 +80,16 @@ export default function SharedPageClient({ docId, content, title, createdAt, isP
                     )}
                 </div>
                 <div className={styles.actions}>
+                    {isOwner && (
+                        <>
+                            <Link href={`/s/${docId}/edit`} className={styles.createLink} title="Edit">
+                                <Pencil size={14} />
+                            </Link>
+                            <Link href={`/s/${docId}/versions`} className={styles.createLink} title="Version History">
+                                <History size={14} />
+                            </Link>
+                        </>
+                    )}
                     <ForkButton content={content} />
                     <DownloadMenu content={content} title={title} />
                     <Link href="/" className={styles.createLink}>

@@ -61,6 +61,31 @@ export default function RootLayout({
             - No authentication required. */}
         <link rel="api-description" href="/agents.md" type="text/markdown" />
         <link rel="service-desc" href="/.well-known/openapi.json" type="application/json" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebApplication',
+              name: 'Readflow',
+              url: 'https://readflow.aranish.uk',
+              description: 'A fast, minimal markdown editor with live preview. Write your README, share a read-only link, download as PDF.',
+              applicationCategory: 'DeveloperApplication',
+              operatingSystem: 'Any',
+              offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+              featureList: [
+                'Live markdown preview',
+                'Instant sharing with read-only links',
+                'PDF, HTML, and Markdown download',
+                'Password-protected shares',
+                'LaTeX/Math support',
+                'Mermaid diagram rendering',
+                'Version history',
+                'View analytics',
+              ],
+            }),
+          }}
+        />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} ${abrilFatface.variable} ${cabin.variable}`}>
         <SessionProvider>

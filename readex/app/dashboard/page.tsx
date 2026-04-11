@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FileText, Trash2, ExternalLink, Lock, Clock, Eye, BarChart3, Plus } from 'lucide-react';
+import { FileText, Trash2, ExternalLink, Lock, Clock, Pencil, BarChart3, History, Plus } from 'lucide-react';
 import styles from './page.module.css';
 
 interface DocEntry {
@@ -110,6 +110,12 @@ export default function DashboardPage() {
                             <div className={styles.cardActions}>
                                 <Link href={`/s/${doc.id}`} className={styles.cardBtn} title="View">
                                     <ExternalLink size={14} />
+                                </Link>
+                                <Link href={`/s/${doc.id}/edit`} className={styles.cardBtn} title="Edit">
+                                    <Pencil size={14} />
+                                </Link>
+                                <Link href={`/s/${doc.id}/versions`} className={styles.cardBtn} title="Version History">
+                                    <History size={14} />
                                 </Link>
                                 <Link href={`/s/${doc.id}/analytics`} className={styles.cardBtn} title="Analytics">
                                     <BarChart3 size={14} />
