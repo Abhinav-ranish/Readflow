@@ -51,7 +51,7 @@ interface DBAdapter {
     updateReadme(id: string, content: string, userId: string, title?: string): Promise<boolean>;
     setSlug(id: string, slug: string, userId: string): Promise<boolean>;
     checkRateLimit(ip: string): Promise<boolean>;
-    getReadmesByUser(userId: string): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean }[]>;
+    getReadmesByUser(userId: string): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean; preview?: string }[]>;
     deleteReadme(id: string, userId: string): Promise<boolean>;
     // Comments
     addComment(readmeId: string, authorName: string, content: string, userId?: string): Promise<string>;
@@ -269,19 +269,19 @@ const localAdapter: DBAdapter = {
         }
     },
 
-    async getReadmesByUser(userId): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean }[]> {
-        const results: { id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean }[] = [];
+    async getReadmesByUser(userId): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean; preview?: string }[]> {
+        const results: { id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean; preview?: string }[] = [];
         if (process.env.NODE_ENV === 'development') {
             const store = readStore();
             for (const [id, entry] of Object.entries(store.readmes) as [string, any][]) {
                 if (entry.userId === userId) {
-                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug, folder: entry.folder, pinned: entry.pinned });
+                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug, folder: entry.folder, pinned: entry.pinned, preview: typeof entry.content === 'string' ? entry.content.slice(0, 200) : undefined });
                 }
             }
         } else {
             for (const [id, entry] of memoryStore.readmes.entries()) {
                 if (entry.userId === userId) {
-                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug, folder: entry.folder, pinned: entry.pinned });
+                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug, folder: entry.folder, pinned: entry.pinned, preview: typeof entry.content === 'string' ? entry.content.slice(0, 200) : undefined });
                 }
             }
         }
@@ -805,7 +805,7 @@ const cloudflareAdapter: DBAdapter = {
     async getReadmesByUser(userId) {
         await initD1();
         const results = await queryD1(
-            `SELECT id, title, created_at, password_hash, expires_at, slug, folder, pinned FROM readmes WHERE user_id = ? ORDER BY pinned DESC, created_at DESC`,
+            `SELECT id, title, created_at, password_hash, expires_at, slug, folder, pinned, SUBSTR(content, 1, 200) as preview FROM readmes WHERE user_id = ? ORDER BY pinned DESC, created_at DESC`,
             [userId]
         );
         return results.map((r: any) => ({
@@ -817,6 +817,7 @@ const cloudflareAdapter: DBAdapter = {
             slug: r.slug || undefined,
             folder: r.folder || undefined,
             pinned: !!r.pinned,
+            preview: r.preview || undefined,
         }));
     },
 
