@@ -417,6 +417,7 @@ async function queryD1(sql: string, params: any[] = []) {
 
 async function safeAlter(sql: string) {
     try { await queryD1(sql); } catch (e: any) {
+        // Ignore "duplicate column" errors — column already exists
         if (e?.message?.includes('duplicate column') || e?.message?.includes('already exists')) return;
         throw e;
     }
