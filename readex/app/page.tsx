@@ -176,7 +176,7 @@ export default function Home() {
         isSharing={isSharing}
       />
 
-      <FirstRunGuide />
+      {markdown === DEFAULT_MARKDOWN && <FirstRunGuide />}
     </main>
   );
 }
