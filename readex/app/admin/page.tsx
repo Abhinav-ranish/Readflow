@@ -360,7 +360,7 @@ export default function AdminPage() {
             {actionError && <div className={styles.actionError}>{actionError}</div>}
 
             {/* Bulk action bar */}
-            {selected.size > 1 && (
+            {selected.size >= 1 && (
                 <div className={styles.bulkBar}>
                     <span className={styles.bulkCount}>{selected.size} selected</span>
                     <button className={styles.bulkBtn} onClick={handleBulkRename}><Pencil size={13} /> Rename</button>
