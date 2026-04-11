@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, ArrowLeft, Trash2, Pencil, ExternalLink, Check, X, ChevronRight, FolderOpen, FileText, User as UserIcon } from 'lucide-react';
+import { Shield, ArrowLeft, Trash2, Pencil, ExternalLink, Check, X, ChevronRight, FolderOpen, FileText, User as UserIcon, Mail, Calendar, CreditCard, Crown, Key } from 'lucide-react';
 import styles from './page.module.css';
 
 interface User {
@@ -171,6 +171,15 @@ export default function AdminPage() {
         const res = await fetch('/api/admin/users', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
         if (res.ok) { setUsers(prev => prev.filter(u => u.id !== id)); if (activeUser === id) setActiveUser(null); }
         else showError('Failed to delete user');
+    };
+
+    const handleTogglePlan = async (userId: string) => {
+        const user = users.find(u => u.id === userId);
+        if (!user) return;
+        const newPlan = user.plan === 'pro' ? 'free' : 'pro';
+        const res = await fetch('/api/admin/users', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: userId, plan: newPlan }) });
+        if (res.ok) setUsers(prev => prev.map(u => u.id === userId ? { ...u, plan: newPlan } : u));
+        else showError('Failed to update plan');
     };
 
     const handleSaveDoc = async (id: string) => {
@@ -380,6 +389,54 @@ export default function AdminPage() {
                 )}
             </nav>
 
+            {/* User info panel */}
+            {activeUserData && (
+                <div className={styles.userPanel}>
+                    <div className={styles.userPanelLeft}>
+                        {activeUserData.image ? (
+                            <img src={activeUserData.image} alt="" className={styles.userPanelAvatar} />
+                        ) : (
+                            <div className={styles.userPanelAvatarFallback}><UserIcon size={24} /></div>
+                        )}
+                        <div className={styles.userPanelInfo}>
+                            <span className={styles.userPanelName}>{activeUserData.name || 'No name'}</span>
+                            <span className={styles.userPanelEmail}><Mail size={12} /> {activeUserData.email}</span>
+                        </div>
+                    </div>
+                    <div className={styles.userPanelMeta}>
+                        <div className={styles.userMetaItem}>
+                            <Calendar size={13} />
+                            <span>Joined {new Date(activeUserData.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div className={styles.userMetaItem}>
+                            <Key size={13} />
+                            <span className={`${styles.providerBadge} ${activeUserData.provider === 'github' ? styles.githubBadge : ''}`}>{activeUserData.provider}</span>
+                        </div>
+                        <div className={styles.userMetaItem}>
+                            <FileText size={13} />
+                            <span>{docs.filter(d => d.userId === activeUserData.id).length} documents</span>
+                        </div>
+                    </div>
+                    <div className={styles.userPanelActions}>
+                        <button
+                            className={`${styles.planBtn} ${activeUserData.plan === 'pro' ? styles.planPro : styles.planFree}`}
+                            onClick={() => handleTogglePlan(activeUserData.id)}
+                            title={activeUserData.plan === 'pro' ? 'Downgrade to Free' : 'Upgrade to Pro'}
+                        >
+                            {activeUserData.plan === 'pro' ? <Crown size={13} /> : <CreditCard size={13} />}
+                            {activeUserData.plan === 'pro' ? 'Pro' : 'Free'}
+                        </button>
+                        <button
+                            className={styles.dangerBtnSmall}
+                            onClick={() => handleDeleteUser(activeUserData.id, activeUserData.email)}
+                            title="Delete user"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Main Finder area */}
             {!activeUser ? (
                 <div className={styles.finderGrid} ref={gridRef} onMouseDown={handleMarqueeStart}>
@@ -402,6 +459,7 @@ export default function AdminPage() {
                                 <span className={styles.finderMeta}>{userDocs.length} doc{userDocs.length !== 1 ? 's' : ''}</span>
                                 <div className={styles.finderActions}>
                                     <span className={`${styles.providerBadge} ${u.provider === 'github' ? styles.githubBadge : ''}`}>{u.provider}</span>
+                                    {u.plan === 'pro' && <span className={styles.proBadge}><Crown size={10} /> Pro</span>}
                                     <button className={styles.dangerBtnSmall} onClick={(e) => { e.stopPropagation(); handleDeleteUser(u.id, u.email); }} title="Delete user"><Trash2 size={12} /></button>
                                 </div>
                             </div>

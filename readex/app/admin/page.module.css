@@ -139,6 +139,124 @@
     flex-shrink: 0;
 }
 
+/* User Management Panel */
+
+.userPanel {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1rem 1.25rem;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+}
+
+.userPanelLeft {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+.userPanelAvatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--border-subtle);
+}
+
+.userPanelAvatarFallback {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: var(--bg-tertiary);
+    border: 2px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--fg-muted);
+}
+
+.userPanelInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.userPanelName {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.userPanelEmail {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    color: var(--fg-muted);
+}
+
+.userPanelMeta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+    justify-content: center;
+}
+
+.userMetaItem {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    color: var(--fg-secondary);
+    white-space: nowrap;
+}
+
+.userPanelActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.planBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.planFree {
+    background-color: rgba(255, 255, 255, 0.04);
+    border-color: var(--border-subtle);
+    color: var(--fg-secondary);
+}
+
+.planFree:hover {
+    background-color: rgba(56, 139, 253, 0.1);
+    border-color: rgba(56, 139, 253, 0.3);
+    color: var(--accent-primary);
+}
+
+.planPro {
+    background-color: rgba(210, 153, 34, 0.12);
+    border-color: rgba(210, 153, 34, 0.3);
+    color: #d29922;
+}
+
+.planPro:hover {
+    background-color: rgba(210, 153, 34, 0.2);
+}
+
 /* Finder Grid */
 
 .finderGrid {
@@ -230,6 +348,18 @@
 .githubBadge {
     background-color: rgba(255, 255, 255, 0.08);
     color: var(--fg-secondary);
+}
+
+.proBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    background-color: rgba(210, 153, 34, 0.15);
+    color: #d29922;
 }
 
 .finderActions {
@@ -614,5 +744,17 @@
     .fileThumb {
         width: 72px;
         height: 84px;
+    }
+
+    .userPanel {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .userPanelMeta {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 0.5rem;
     }
 }
