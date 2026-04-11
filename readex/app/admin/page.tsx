@@ -247,11 +247,26 @@ export default function AdminPage() {
 
     const handleDropOnUser = async (e: React.DragEvent, userId: string) => {
         e.preventDefault();
+        e.stopPropagation();
         setDragOverUser(null);
         setIsDragging(false);
         const docId = e.dataTransfer.getData('text/plain');
         if (!docId) return;
-        setActiveUser(userId);
+        // Reassign doc ownership via API
+        try {
+            const res = await fetch('/api/admin/docs', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: docId, userId }),
+            });
+            if (res.ok) {
+                setDocs(prev => prev.map(d => d.id === docId ? { ...d, userId } : d));
+            } else {
+                showError('Failed to reassign document');
+            }
+        } catch {
+            showError('Failed to reassign document');
+        }
     };
 
     const orphanDocs = docs.filter(d => !d.userId);
@@ -330,8 +345,8 @@ export default function AdminPage() {
                                 key={u.id}
                                 className={`${styles.finderItem} ${styles.folderItem} ${dragOverUser === u.id ? styles.dropTarget : ''}`}
                                 onDoubleClick={() => setActiveUser(u.id)}
-                                onDragOver={(e) => { e.preventDefault(); setDragOverUser(u.id); }}
-                                onDragLeave={() => setDragOverUser(null)}
+                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverUser(u.id); }}
+                                onDragLeave={(e) => { if (e.currentTarget === e.target || !e.currentTarget.contains(e.relatedTarget as Node)) setDragOverUser(null); }}
                                 onDrop={(e) => handleDropOnUser(e, u.id)}
                             >
                                 <div className={styles.folderIcon}>

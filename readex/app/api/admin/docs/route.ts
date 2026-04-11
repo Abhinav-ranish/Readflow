@@ -26,8 +26,12 @@ export async function DELETE(request: NextRequest) {
 // PATCH a doc (slug, title)
 export async function PATCH(request: NextRequest) {
     if (!await verifyAdmin()) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    const { id, slug, title } = await request.json();
+    const { id, slug, title, userId } = await request.json();
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+
+    if (userId !== undefined) {
+        await db.adminReassignDoc(id, userId);
+    }
 
     if (slug !== undefined) {
         if (slug && !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(slug)) {

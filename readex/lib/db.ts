@@ -79,6 +79,7 @@ interface DBAdapter {
     adminSetSlug(id: string, slug: string | null): Promise<boolean>;
     adminSetTitle(id: string, title: string): Promise<boolean>;
     adminDeleteUser(id: string): Promise<boolean>;
+    adminReassignDoc(docId: string, newUserId: string | null): Promise<boolean>;
     // API keys
     setApiKey(userId: string, apiKey: string): Promise<void>;
     getUserByApiKey(apiKey: string): Promise<UserEntry | null>;
@@ -584,6 +585,20 @@ const localAdapter: DBAdapter = {
         return true;
     },
 
+    async adminReassignDoc(docId, newUserId): Promise<boolean> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            if (!store.readmes[docId]) return false;
+            store.readmes[docId].userId = newUserId || undefined;
+            writeStore(store);
+            return true;
+        }
+        const doc = memoryStore.readmes.get(docId);
+        if (!doc) return false;
+        doc.userId = newUserId || undefined;
+        return true;
+    },
+
     async setApiKey(userId, apiKey): Promise<void> {
         if (process.env.NODE_ENV === 'development') {
             const store = readStore();
@@ -963,6 +978,14 @@ const cloudflareAdapter: DBAdapter = {
         const results = await queryD1(`SELECT id FROM users WHERE id = ? LIMIT 1`, [id]);
         if (results.length === 0) return false;
         await queryD1(`DELETE FROM users WHERE id = ?`, [id]);
+        return true;
+    },
+
+    async adminReassignDoc(docId, newUserId): Promise<boolean> {
+        await initD1();
+        const results = await queryD1(`SELECT id FROM readmes WHERE id = ? LIMIT 1`, [docId]);
+        if (results.length === 0) return false;
+        await queryD1(`UPDATE readmes SET user_id = ? WHERE id = ?`, [newUserId || null, docId]);
         return true;
     },
 
