@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
     FileText, Trash2, ExternalLink, Lock, Clock, Pencil, BarChart3, History,
-    Plus, Pin, PinOff, FolderOpen, FolderPlus, Crown, Key, Copy, RefreshCw,
+    Plus, Pin, PinOff, FolderOpen, FolderPlus, Crown, Key,
     Upload, Grid3X3, List, ChevronRight, ChevronDown, MoreHorizontal, X,
-    ArrowLeft, Shield
+    ArrowLeft
 } from 'lucide-react';
+import LoadingScreen from '@/components/LoadingScreen';
 import styles from './page.module.css';
 
 interface DocEntry {
@@ -27,7 +28,7 @@ type ViewMode = 'finder' | 'explorer';
 
 export default function DashboardPage() {
     return (
-        <Suspense fallback={<div className={styles.container}><div className={styles.loading}>Loading...</div></div>}>
+        <Suspense fallback={<div className={styles.container}><LoadingScreen /></div>}>
             <DashboardContent />
         </Suspense>
     );
@@ -44,12 +45,6 @@ function DashboardContent() {
     const [viewMode, setViewMode] = useState<ViewMode>('finder');
     const [plan] = useState<'free' | 'pro'>('pro');
     const [upgradeMsg] = useState(false);
-    const [showSettings, setShowSettings] = useState(false);
-    const [agentToken, setAgentToken] = useState<string | null>(null);
-    const [maskedToken, setMaskedToken] = useState<string | null>(null);
-    const [tokenLoading, setTokenLoading] = useState(false);
-    const [tokenMsg, setTokenMsg] = useState<string | null>(null);
-    const [tokenRevealed, setTokenRevealed] = useState(false);
     const [dragging, setDragging] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploadMsg, setUploadMsg] = useState<string | null>(null);
@@ -249,32 +244,6 @@ function DashboardContent() {
         e.target.value = '';
     };
 
-    // Token management
-    const fetchToken = async () => {
-        try {
-            const res = await fetch('/api/user/apikey');
-            if (res.ok) { const data = await res.json(); if (data.hasKey) setMaskedToken(data.masked); }
-        } catch {}
-    };
-
-    const generateToken = async () => {
-        if (agentToken && !confirm('This will replace your current token. Continue?')) return;
-        setTokenLoading(true); setTokenMsg(null);
-        try {
-            const res = await fetch('/api/user/apikey', { method: 'POST' });
-            const data = await res.json();
-            if (!res.ok) { setTokenMsg(data.error || 'Failed'); return; }
-            setAgentToken(data.apiKey);
-            setMaskedToken(data.apiKey.slice(0, 7) + '...' + data.apiKey.slice(-4));
-            setTokenRevealed(true);
-            setTokenMsg('Token generated! Copy it now.');
-        } catch { setTokenMsg('Failed to generate token'); }
-        finally { setTokenLoading(false); }
-    };
-
-    const copyToken = () => {
-        if (agentToken) { navigator.clipboard.writeText(agentToken); setTokenMsg('Copied!'); setTimeout(() => setTokenMsg(null), 2000); }
-    };
 
     // Selection
     const onSelectItem = (id: string, e: React.MouseEvent) => {
@@ -325,7 +294,7 @@ function DashboardContent() {
     const allRootDocs = docs.filter(d => !d.folder);
 
     if (status === 'loading' || loading) {
-        return <div className={styles.container}><div className={styles.loading}>Loading...</div></div>;
+        return <div className={styles.container}><LoadingScreen /></div>;
     }
     if (!session) return null;
 
@@ -366,9 +335,9 @@ function DashboardContent() {
                             <List size={14} />
                         </button>
                     </div>
-                    <button className={styles.settingsBtn} onClick={() => { setShowSettings(!showSettings); if (!showSettings) fetchToken(); }} title="Settings">
+                    <Link href="/settings" className={styles.settingsBtn} title="Settings">
                         <Key size={14} />
-                    </button>
+                    </Link>
                     <button className={styles.uploadBtn} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                         <Upload size={14} /> Upload
                     </button>
@@ -379,25 +348,6 @@ function DashboardContent() {
             </header>
 
             {upgradeMsg && <div className={styles.upgradeSuccess}>Welcome to Pro! All features are now unlocked.</div>}
-
-            {showSettings && (
-                <div className={styles.settingsPanel}>
-                    <div className={styles.settingsHeader}><Key size={16} /><h3>Agent Token</h3></div>
-                    <p className={styles.settingsDesc}>Use this token to post from the CLI or AI agents.</p>
-                    <div className={styles.tokenRow}>
-                        {maskedToken && !tokenRevealed && <code className={styles.tokenValue}>{maskedToken}</code>}
-                        {agentToken && tokenRevealed && (<><code className={styles.tokenValue}>{agentToken}</code><button className={styles.tokenAction} onClick={copyToken} title="Copy"><Copy size={13} /></button></>)}
-                        {!maskedToken && !agentToken && <span className={styles.tokenNone}>No token generated</span>}
-                    </div>
-                    {tokenMsg && <div className={styles.tokenMsg}>{tokenMsg}</div>}
-                    <div className={styles.tokenActions}>
-                        <button className={styles.tokenGenBtn} onClick={generateToken} disabled={tokenLoading}>
-                            <RefreshCw size={13} /> {maskedToken ? 'Rotate Token' : 'Generate Token'}
-                        </button>
-                    </div>
-                    <div className={styles.tokenHelp}><code>npx readflow config --token YOUR_TOKEN</code></div>
-                </div>
-            )}
 
             {uploadMsg && <div className={styles.uploadMsg}>{uploadMsg}</div>}
 

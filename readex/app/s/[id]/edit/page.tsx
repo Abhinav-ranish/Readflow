@@ -7,6 +7,7 @@ import Editor from '@/components/Editor';
 import Preview from '@/components/Preview';
 import { ArrowLeft, Save, Eye, EyeOff, History, Link as LinkIcon } from 'lucide-react';
 import styles from './edit.module.css';
+import LoadingScreen from '@/components/LoadingScreen';
 
 export default function EditPage() {
     const { data: session, status } = useSession();
@@ -147,7 +148,7 @@ export default function EditPage() {
     });
 
     if (status === 'loading' || loading) {
-        return <div className={styles.container}><div className={styles.loading}>Loading...</div></div>;
+        return <div className={styles.container}><LoadingScreen /></div>;
     }
 
     if (error && !content) {

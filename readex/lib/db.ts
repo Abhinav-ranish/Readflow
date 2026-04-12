@@ -84,6 +84,8 @@ interface DBAdapter {
     // API keys
     setApiKey(userId: string, apiKey: string): Promise<void>;
     getUserByApiKey(apiKey: string): Promise<UserEntry | null>;
+    // Account
+    deleteAccountAndDocs(userId: string): Promise<boolean>;
 }
 
 // --- Crypto helpers ---
@@ -642,6 +644,37 @@ const localAdapter: DBAdapter = {
         }
         return null;
     },
+
+    async deleteAccountAndDocs(userId): Promise<boolean> {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            if (!store.users[userId]) return false;
+            // Delete all user docs, their versions, and comments
+            for (const [id, entry] of Object.entries(store.readmes) as [string, any][]) {
+                if (entry.userId === userId) {
+                    delete store.readmes[id];
+                    delete store.versions[id];
+                    if (store.comments) {
+                        for (const [cid, c] of Object.entries(store.comments) as [string, any][]) {
+                            if (c.readmeId === id) delete store.comments[cid];
+                        }
+                    }
+                }
+            }
+            delete store.users[userId];
+            writeStore(store);
+            return true;
+        }
+        if (!memoryStore.users.has(userId)) return false;
+        for (const [id, entry] of memoryStore.readmes.entries()) {
+            if (entry.userId === userId) {
+                memoryStore.readmes.delete(id);
+                memoryStore.versions.delete(id);
+            }
+        }
+        memoryStore.users.delete(userId);
+        return true;
+    },
 };
 
 // --- 2. Cloudflare D1 Adapter (Production via REST) ---
@@ -1035,6 +1068,21 @@ const cloudflareAdapter: DBAdapter = {
         if (results.length === 0) return null;
         const u = results[0];
         return { id: u.id, email: u.email, name: u.name, image: u.image, provider: u.provider, providerId: u.provider_id, createdAt: u.created_at, plan: u.plan || 'free', apiKey: u.api_key };
+    },
+
+    async deleteAccountAndDocs(userId): Promise<boolean> {
+        await initD1();
+        const results = await queryD1(`SELECT id FROM users WHERE id = ? LIMIT 1`, [userId]);
+        if (results.length === 0) return false;
+        // Get all user docs
+        const docs = await queryD1(`SELECT id FROM readmes WHERE user_id = ?`, [userId]);
+        for (const doc of docs) {
+            await queryD1(`DELETE FROM comments WHERE readme_id = ?`, [doc.id]);
+            await queryD1(`DELETE FROM readme_versions WHERE readme_id = ?`, [doc.id]);
+            await queryD1(`DELETE FROM readmes WHERE id = ?`, [doc.id]);
+        }
+        await queryD1(`DELETE FROM users WHERE id = ?`, [userId]);
+        return true;
     },
 };
 

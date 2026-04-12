@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, BarChart3, Users, Eye, TrendingUp } from 'lucide-react';
 import styles from './analytics.module.css';
+import LoadingScreen from '@/components/LoadingScreen';
 
 interface ViewStats {
     total: number;
@@ -47,7 +48,7 @@ export default function AnalyticsPage() {
     }, [status, fetchStats]);
 
     if (status === 'loading' || loading) {
-        return <div className={styles.container}><div className={styles.loading}>Loading...</div></div>;
+        return <div className={styles.container}><LoadingScreen /></div>;
     }
 
     if (error) {

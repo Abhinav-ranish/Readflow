@@ -6,6 +6,11 @@ import { ReadflowPromo } from "./ClaudePromo";
 import { ChatGPTPromo } from "./ChatGPTPromo";
 import { ClaudeThumbnail } from "./ClaudePromo/Thumbnail";
 import { ChatGPTThumbnail } from "./ChatGPTPromo/Thumbnail";
+import { HeroShot } from "./DevpostScreenshots/HeroShot";
+import { ArchitectureShot } from "./DevpostScreenshots/ArchitectureShot";
+import { CLIShot } from "./DevpostScreenshots/CLIShot";
+import { FeaturesShot } from "./DevpostScreenshots/FeaturesShot";
+import { FlowShot } from "./DevpostScreenshots/FlowShot";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -43,6 +48,13 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
       />
+
+      {/* Devpost Screenshots — 1920x1080 */}
+      <Still id="DevpostHero" component={HeroShot} width={1920} height={1080} />
+      <Still id="DevpostArchitecture" component={ArchitectureShot} width={1920} height={1080} />
+      <Still id="DevpostCLI" component={CLIShot} width={1920} height={1080} />
+      <Still id="DevpostFeatures" component={FeaturesShot} width={1920} height={1080} />
+      <Still id="DevpostFlow" component={FlowShot} width={1920} height={1080} />
 
       <Composition
         id="HelloWorld"

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Shield, ArrowLeft, Trash2, Pencil, ExternalLink, Check, X, ChevronRight, FolderOpen, FileText, User as UserIcon, Mail, Calendar, CreditCard, Crown, Key } from 'lucide-react';
 import styles from './page.module.css';
+import LoadingScreen from '@/components/LoadingScreen';
 
 interface User {
     id: string;
@@ -330,7 +331,7 @@ export default function AdminPage() {
     };
 
     if (status === 'loading' || loading) {
-        return <div className={styles.container}><div className={styles.loading}>Loading...</div></div>;
+        return <div className={styles.container}><LoadingScreen /></div>;
     }
 
     if (error) {

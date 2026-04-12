@@ -1,0 +1,376 @@
+.container {
+    min-height: 100vh;
+    background-color: var(--bg-primary);
+    color: var(--fg-primary);
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 1.5rem 3rem;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 1.5rem;
+}
+
+.backBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    color: var(--fg-secondary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    transition: background 0.15s, color 0.15s;
+}
+
+.backBtn:hover {
+    background: var(--bg-tertiary);
+    color: var(--fg-primary);
+}
+
+.headerTitle {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Sections */
+
+.section {
+    margin-bottom: 2rem;
+}
+
+.sectionTitle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+    color: var(--fg-primary);
+}
+
+.sectionDesc {
+    font-size: 0.82rem;
+    color: var(--fg-secondary);
+    margin: 0 0 0.75rem;
+    line-height: 1.5;
+}
+
+/* Profile Card */
+
+.profileCard {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+}
+
+.profileLeft {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-subtle);
+}
+
+.avatarFallback {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--fg-secondary);
+}
+
+.profileInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.profileName {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.profileEmail {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--fg-secondary);
+}
+
+.profileMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    align-items: flex-end;
+}
+
+.metaItem {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    color: var(--fg-secondary);
+}
+
+.providerBadge {
+    text-transform: capitalize;
+    background: var(--bg-tertiary);
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
+.planPro {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: #d4a72c;
+    font-weight: 600;
+    font-size: 0.78rem;
+}
+
+.planFree {
+    font-size: 0.78rem;
+    color: var(--fg-secondary);
+}
+
+/* Token Card */
+
+.tokenCard {
+    padding: 1rem 1.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+}
+
+.tokenRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.tokenValue {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    background: var(--bg-tertiary);
+    padding: 0.35rem 0.65rem;
+    border-radius: 5px;
+    color: var(--fg-primary);
+    word-break: break-all;
+    flex: 1;
+}
+
+.tokenAction {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 5px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-tertiary);
+    color: var(--fg-secondary);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.tokenAction:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+.tokenNone {
+    font-size: 0.82rem;
+    color: var(--fg-secondary);
+    font-style: italic;
+}
+
+.tokenMsg {
+    font-size: 0.78rem;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+}
+
+.tokenGenBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    color: var(--fg-primary);
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 0.75rem;
+}
+
+.tokenGenBtn:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+.tokenGenBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.tokenHelp {
+    font-size: 0.75rem;
+    color: var(--fg-secondary);
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 0.65rem;
+    line-height: 1.6;
+}
+
+.tokenHelp span {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.tokenHelp code {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    background: var(--bg-tertiary);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    word-break: break-all;
+    display: block;
+}
+
+/* Danger Zone */
+
+.dangerSection {
+    border-top: 1px solid #da3633;
+    padding-top: 1.5rem;
+}
+
+.dangerSection .sectionTitle {
+    color: #da3633;
+}
+
+.dangerCard {
+    padding: 1rem 1.25rem;
+    background: rgba(218, 54, 51, 0.06);
+    border: 1px solid rgba(218, 54, 51, 0.3);
+    border-radius: 10px;
+}
+
+.dangerInfo {
+    margin-bottom: 1rem;
+}
+
+.dangerTitle {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 0 0 0.35rem;
+    color: #da3633;
+}
+
+.dangerDesc {
+    font-size: 0.8rem;
+    color: var(--fg-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.dangerActions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 300px;
+}
+
+.dangerLabel {
+    font-size: 0.8rem;
+    color: var(--fg-secondary);
+}
+
+.dangerInput {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.82rem;
+    font-family: var(--font-mono);
+    background: var(--bg-primary);
+    border: 1px solid rgba(218, 54, 51, 0.3);
+    border-radius: 6px;
+    color: var(--fg-primary);
+    outline: none;
+}
+
+.dangerInput:focus {
+    border-color: #da3633;
+}
+
+.dangerBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid #da3633;
+    border-radius: 6px;
+    background: transparent;
+    color: #da3633;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.dangerBtn:hover:not(:disabled) {
+    background: #da3633;
+    color: #fff;
+}
+
+.dangerBtn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Responsive */
+
+@media (max-width: 600px) {
+    .container {
+        padding: 0 1rem 2rem;
+    }
+
+    .profileCard {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .profileMeta {
+        align-items: flex-start;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+}

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Preview from '@/components/Preview';
 import { History, ArrowLeft, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import styles from './versions.module.css';
+import LoadingScreen from '@/components/LoadingScreen';
 
 interface Version {
     id: string;
@@ -71,7 +72,7 @@ export default function VersionsPage() {
     };
 
     if (status === 'loading' || loading) {
-        return <div className={styles.container}><div className={styles.loading}>Loading...</div></div>;
+        return <div className={styles.container}><LoadingScreen /></div>;
     }
 
     return (
