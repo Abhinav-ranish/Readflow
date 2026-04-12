@@ -45,7 +45,7 @@ function AnimatedTerminal() {
     const [chars, setChars] = useState(0);
     const [outputLines, setOutputLines] = useState(0);
     const [phase, setPhase] = useState<'typing' | 'output' | 'pause'>('typing');
-    const [history, setHistory] = useState<{ cmd: string; output: typeof CLI_SEQUENCES[0]['output'] }[]>([]);
+    const [prevSeq, setPrevSeq] = useState<{ cmd: string; output: typeof CLI_SEQUENCES[0]['output'] } | null>(null);
 
     const seq = CLI_SEQUENCES[seqIdx];
 
@@ -66,7 +66,7 @@ function AnimatedTerminal() {
     useEffect(() => {
         if (phase !== 'pause') return;
         const t = setTimeout(() => {
-            setHistory(h => [...h, { cmd: seq.cmd, output: seq.output }]);
+            setPrevSeq({ cmd: seq.cmd, output: seq.output });
             setSeqIdx(i => (i + 1) % CLI_SEQUENCES.length);
             setChars(0);
             setOutputLines(0);
@@ -74,10 +74,6 @@ function AnimatedTerminal() {
         }, 2500);
         return () => clearTimeout(t);
     }, [phase, seq]);
-
-    useEffect(() => {
-        if (history.length > 4) setHistory(h => h.slice(-2));
-    }, [history.length]);
 
     return (
         <div className={styles.term}>
@@ -87,20 +83,20 @@ function AnimatedTerminal() {
                 <div style={{ width: 52 }} />
             </div>
             <div className={styles.termBody}>
-                {history.map((h, hi) => (
-                    <div key={hi} className={styles.termBlock}>
+                {prevSeq && (
+                    <div className={styles.termBlock}>
                         <div className={styles.termLine}>
                             <span className={styles.prompt}>$</span>
-                            <span className={styles.cmd}>{h.cmd}</span>
+                            <span className={styles.cmd}>{prevSeq.cmd}</span>
                         </div>
-                        {h.output.map((o, oi) =>
+                        {prevSeq.output.map((o, oi) =>
                             o.blank ? <div key={oi} className={styles.termGap} /> :
                             <div key={oi} className={styles.termLine}>
                                 <span className={o.link ? styles.termLink : styles.termOut}>{o.text}</span>
                             </div>
                         )}
                     </div>
-                ))}
+                )}
 
                 <div className={styles.termBlock}>
                     <div className={styles.termLine}>
@@ -129,52 +125,51 @@ function AnimatedTerminal() {
     );
 }
 
-// ── Web editor with typing + AI ──────────────────────────
-const EDITOR_LINES = [
-    '# Project Setup Guide',
-    '',
-    '## Prerequisites',
-    '',
-    '- Node.js 18+',
-    '- npm or yarn',
-    '',
-    '## Installation',
-    '',
-    '```bash',
-    'npm install readflow-md',
-    '```',
-    '',
-    '## Quick Start',
-    '',
-    'Import and configure:',
+// ── Web preview (rendered markdown) with AI ─────────────
+// Each item is a rendered preview element that appears one at a time
+type PreviewItem =
+    | { type: 'h1'; text: string }
+    | { type: 'h2'; text: string }
+    | { type: 'p'; text: string }
+    | { type: 'ul'; items: string[] }
+    | { type: 'code'; text: string };
+
+const PREVIEW_ITEMS: PreviewItem[] = [
+    { type: 'h1', text: 'Project Setup Guide' },
+    { type: 'h2', text: 'Prerequisites' },
+    { type: 'ul', items: ['Node.js 18+', 'npm or yarn'] },
+    { type: 'h2', text: 'Installation' },
+    { type: 'code', text: 'npm install readflow-md' },
+    { type: 'h2', text: 'Quick Start' },
+    { type: 'p', text: 'Import and configure:' },
 ];
 
-const AI_RESULT = [
-    '',
-    '```javascript',
-    'import { share } from "readflow-md";',
-    '',
-    'const url = await share("README.md", {',
-    '  title: "My Docs",',
-    '  password: "optional",',
-    '});',
-    'console.log(url);',
-    '```',
+const AI_ITEMS: PreviewItem[] = [
+    { type: 'code', text: 'import { share } from "readflow-md";\n\nconst url = await share("README.md", {\n  title: "My Docs",\n  password: "optional",\n});\nconsole.log(url);' },
 ];
+
+function RenderPreviewItem({ item }: { item: PreviewItem }) {
+    switch (item.type) {
+        case 'h1': return <h1 className={styles.previewH1}>{item.text}</h1>;
+        case 'h2': return <h2 className={styles.previewH2}>{item.text}</h2>;
+        case 'p': return <p className={styles.previewP}>{item.text}</p>;
+        case 'ul': return <ul className={styles.previewUl}>{item.items.map((li, i) => <li key={i}>{li}</li>)}</ul>;
+        case 'code': return <code className={styles.previewCode}>{item.text}</code>;
+    }
+}
 
 function AnimatedEditor() {
-    const [visibleLines, setVisibleLines] = useState(0);
+    const [visibleCount, setVisibleCount] = useState(0);
     const [showAI, setShowAI] = useState(false);
-    const [aiLines, setAiLines] = useState(0);
+    const [aiCount, setAiCount] = useState(0);
     const [phase, setPhase] = useState<'typing' | 'ai-trigger' | 'ai-typing' | 'done'>('typing');
 
     useEffect(() => {
         if (phase !== 'typing') return;
-        if (visibleLines >= EDITOR_LINES.length) { setPhase('ai-trigger'); return; }
-        const delay = EDITOR_LINES[visibleLines] === '' ? 100 : 120 + Math.random() * 80;
-        const t = setTimeout(() => setVisibleLines(n => n + 1), delay);
+        if (visibleCount >= PREVIEW_ITEMS.length) { setPhase('ai-trigger'); return; }
+        const t = setTimeout(() => setVisibleCount(n => n + 1), 350 + Math.random() * 150);
         return () => clearTimeout(t);
-    }, [phase, visibleLines]);
+    }, [phase, visibleCount]);
 
     useEffect(() => {
         if (phase !== 'ai-trigger') return;
@@ -184,23 +179,21 @@ function AnimatedEditor() {
 
     useEffect(() => {
         if (phase !== 'ai-typing') return;
-        if (aiLines >= AI_RESULT.length) { setPhase('done'); return; }
-        const t = setTimeout(() => setAiLines(n => n + 1), 100);
+        if (aiCount >= AI_ITEMS.length) { setPhase('done'); return; }
+        const t = setTimeout(() => setAiCount(n => n + 1), 400);
         return () => clearTimeout(t);
-    }, [phase, aiLines]);
+    }, [phase, aiCount]);
 
     useEffect(() => {
         if (phase !== 'done') return;
         const t = setTimeout(() => {
-            setVisibleLines(0);
+            setVisibleCount(0);
             setShowAI(false);
-            setAiLines(0);
+            setAiCount(0);
             setPhase('typing');
         }, 4000);
         return () => clearTimeout(t);
     }, [phase]);
-
-    const allLines = [...EDITOR_LINES.slice(0, visibleLines), ...AI_RESULT.slice(0, aiLines)];
 
     return (
         <div className={styles.editor}>
@@ -210,20 +203,23 @@ function AnimatedEditor() {
                 <div style={{ width: 52 }} />
             </div>
             <div className={styles.editorBody}>
-                <div className={styles.editorCode}>
-                    {allLines.map((line, i) => (
-                        <div key={i} className={`${styles.eLine} ${i >= visibleLines ? styles.aiLine : ''}`}>
-                            <span className={styles.eNum}>{i + 1}</span>
-                            <span className={styles.eText}>{line || '\u00A0'}</span>
-                        </div>
-                    ))}
-                    {phase === 'typing' && (
-                        <div className={styles.eLine}>
-                            <span className={styles.eNum}>{visibleLines + 1}</span>
-                            <span className={styles.caret} />
-                        </div>
-                    )}
-                </div>
+                {PREVIEW_ITEMS.slice(0, visibleCount).map((item, i) => (
+                    <div key={i} className={styles.previewItem}>
+                        <RenderPreviewItem item={item} />
+                    </div>
+                ))}
+                {phase === 'typing' && visibleCount < PREVIEW_ITEMS.length && (
+                    <span className={styles.caret} style={{ marginTop: '0.5rem' }} />
+                )}
+                {aiCount > 0 && (
+                    <div className={styles.aiContent}>
+                        {AI_ITEMS.slice(0, aiCount).map((item, i) => (
+                            <div key={i} className={styles.previewItem}>
+                                <RenderPreviewItem item={item} />
+                            </div>
+                        ))}
+                    </div>
+                )}
                 {showAI && (
                     <div className={styles.aiBadge}>
                         <Wand2 size={12} />
@@ -310,8 +306,8 @@ export default function DemoPage() {
                     <div className={styles.statLabel}>AI actions built-in</div>
                 </div>
                 <div className={styles.stat}>
-                    <div className={styles.statNum}>30d</div>
-                    <div className={styles.statLabel}>max auto-expiry</div>
+                    <div className={styles.statNum}>Forever</div>
+                    <div className={styles.statLabel}>docs never expire</div>
                 </div>
                 <div className={styles.stat}>
                     <div className={styles.statNum}>&infin;</div>
@@ -337,7 +333,7 @@ export default function DemoPage() {
                 <div className={styles.features}>
                     {[
                         { icon: <Zap size={18} />, title: 'Instant sharing', desc: 'One click or one command. Get a link, share it anywhere.' },
-                        { icon: <Lock size={18} />, title: 'Password & expiry', desc: 'Protect docs with passwords. Set auto-expiry from 1h to 30d.' },
+                        { icon: <Lock size={18} />, title: 'Password & expiry', desc: 'Protect docs with passwords. Optionally set expiry from 1h to 30d.' },
                         { icon: <History size={18} />, title: 'Version history', desc: 'Every edit saved. Compare and restore any version.' },
                         { icon: <BarChart3 size={18} />, title: 'View analytics', desc: 'Track total views, unique visitors, and daily trends.' },
                         { icon: <Wand2 size={18} />, title: 'AI assistant', desc: 'Summarize, expand, fix grammar, translate, generate tables.' },
