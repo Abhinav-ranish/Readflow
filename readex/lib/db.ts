@@ -86,6 +86,16 @@ interface DBAdapter {
     getUserByApiKey(apiKey: string): Promise<UserEntry | null>;
     // Account
     deleteAccountAndDocs(userId: string): Promise<boolean>;
+    // Admin stats
+    getAdminStats(): Promise<{
+        totalUsers: number;
+        totalDocs: number;
+        totalViews: number;
+        userGrowth: { date: string; count: number }[];
+        docGrowth: { date: string; count: number }[];
+        viewsPerDay: { date: string; count: number }[];
+        topDocs: { id: string; title?: string; views: number }[];
+    }>;
 }
 
 // --- Crypto helpers ---
@@ -675,6 +685,63 @@ const localAdapter: DBAdapter = {
         memoryStore.users.delete(userId);
         return true;
     },
+
+    async getAdminStats() {
+        if (process.env.NODE_ENV === 'development') {
+            const store = readStore();
+            const users = Object.values(store.users || {}) as any[];
+            const readmes = Object.entries(store.readmes || {}) as [string, any][];
+            const allViews = store.views || {};
+
+            let totalViews = 0;
+            const viewsByDay: Record<string, number> = {};
+            const topDocsMap: Record<string, number> = {};
+            for (const [docId, views] of Object.entries(allViews) as [string, any[]][]) {
+                totalViews += views.length;
+                topDocsMap[docId] = views.length;
+                for (const v of views) {
+                    const d = new Date(v.createdAt).toISOString().slice(0, 10);
+                    viewsByDay[d] = (viewsByDay[d] || 0) + 1;
+                }
+            }
+
+            const usersByDay: Record<string, number> = {};
+            for (const u of users) {
+                const d = new Date(u.createdAt).toISOString().slice(0, 10);
+                usersByDay[d] = (usersByDay[d] || 0) + 1;
+            }
+
+            const docsByDay: Record<string, number> = {};
+            for (const [, r] of readmes) {
+                if (r.createdAt) {
+                    const d = new Date(r.createdAt).toISOString().slice(0, 10);
+                    docsByDay[d] = (docsByDay[d] || 0) + 1;
+                }
+            }
+
+            const toSorted = (map: Record<string, number>) =>
+                Object.entries(map).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 30).map(([date, count]) => ({ date, count }));
+
+            const topDocs = Object.entries(topDocsMap)
+                .sort((a, b) => b[1] - a[1]).slice(0, 10)
+                .map(([id, views]) => {
+                    const entry = (store.readmes as any)[id];
+                    return { id, title: entry?.title, views };
+                });
+
+            return {
+                totalUsers: users.length,
+                totalDocs: readmes.length,
+                totalViews,
+                userGrowth: toSorted(usersByDay),
+                docGrowth: toSorted(docsByDay),
+                viewsPerDay: toSorted(viewsByDay),
+                topDocs,
+            };
+        }
+        // Memory store fallback
+        return { totalUsers: 0, totalDocs: 0, totalViews: 0, userGrowth: [], docGrowth: [], viewsPerDay: [], topDocs: [] };
+    },
 };
 
 // --- 2. Cloudflare D1 Adapter (Production via REST) ---
@@ -1083,6 +1150,28 @@ const cloudflareAdapter: DBAdapter = {
         }
         await queryD1(`DELETE FROM users WHERE id = ?`, [userId]);
         return true;
+    },
+
+    async getAdminStats() {
+        await initD1();
+        const [usersR, docsR, viewsR, userGrowthR, docGrowthR, viewsPerDayR, topDocsR] = await Promise.all([
+            queryD1(`SELECT count(*) as c FROM users`),
+            queryD1(`SELECT count(*) as c FROM readmes`),
+            queryD1(`SELECT count(*) as c FROM readme_views`),
+            queryD1(`SELECT date(created_at / 1000, 'unixepoch') as date, count(*) as count FROM users GROUP BY date ORDER BY date DESC LIMIT 30`),
+            queryD1(`SELECT date(created_at / 1000, 'unixepoch') as date, count(*) as count FROM readmes GROUP BY date ORDER BY date DESC LIMIT 30`),
+            queryD1(`SELECT date(created_at / 1000, 'unixepoch') as date, count(*) as count FROM readme_views GROUP BY date ORDER BY date DESC LIMIT 30`),
+            queryD1(`SELECT r.id, r.title, count(v.id) as views FROM readmes r LEFT JOIN readme_views v ON v.readme_id = r.id GROUP BY r.id ORDER BY views DESC LIMIT 10`),
+        ]);
+        return {
+            totalUsers: usersR[0]?.c || 0,
+            totalDocs: docsR[0]?.c || 0,
+            totalViews: viewsR[0]?.c || 0,
+            userGrowth: userGrowthR.map((r: any) => ({ date: r.date, count: r.count })),
+            docGrowth: docGrowthR.map((r: any) => ({ date: r.date, count: r.count })),
+            viewsPerDay: viewsPerDayR.map((r: any) => ({ date: r.date, count: r.count })),
+            topDocs: topDocsR.map((r: any) => ({ id: r.id, title: r.title, views: r.views })),
+        };
     },
 };
 

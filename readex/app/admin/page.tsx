@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, ArrowLeft, Trash2, Pencil, ExternalLink, Check, X, ChevronRight, FolderOpen, FileText, User as UserIcon, Mail, Calendar, CreditCard, Crown, Key } from 'lucide-react';
+import { Shield, ArrowLeft, Trash2, Pencil, ExternalLink, Check, X, ChevronRight, FolderOpen, FileText, User as UserIcon, Mail, Calendar, CreditCard, Crown, Key, BarChart3 } from 'lucide-react';
 import styles from './page.module.css';
 import LoadingScreen from '@/components/LoadingScreen';
 
@@ -360,10 +360,13 @@ export default function AdminPage() {
                     <Shield size={18} />
                     <h1 className={styles.headerTitle}>Admin</h1>
                 </div>
-                <div className={styles.stats}>
-                    <span>{users.length} users</span>
-                    <span className={styles.statDot} />
-                    <span>{docs.length} docs</span>
+                <div className={styles.headerRight}>
+                    <Link href="/admin/stats" className={styles.statsBtn}><BarChart3 size={14} /> Analytics</Link>
+                    <div className={styles.stats}>
+                        <span>{users.length} users</span>
+                        <span className={styles.statDot} />
+                        <span>{docs.length} docs</span>
+                    </div>
                 </div>
             </header>
 

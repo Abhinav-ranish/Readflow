@@ -78,6 +78,31 @@
     font-weight: 600;
 }
 
+.headerRight {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.statsBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--fg-primary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.statsBtn:hover {
+    background: var(--bg-tertiary);
+}
+
 .stats {
     display: flex;
     align-items: center;
