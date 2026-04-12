@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
     FileText, Trash2, ExternalLink, Lock, Clock, Pencil, BarChart3, History,
-    Plus, Pin, PinOff, FolderOpen, FolderPlus, Crown, Key,
+    Plus, Pin, PinOff, FolderOpen, FolderPlus, Crown, Settings,
     Upload, Grid3X3, List, ChevronRight, ChevronDown, MoreHorizontal, X,
     ArrowLeft
 } from 'lucide-react';
@@ -318,6 +318,9 @@ function DashboardContent() {
             {/* Header */}
             <header className={styles.header}>
                 <div className={styles.headerLeft}>
+                    <Link href="/settings" className={styles.settingsBtn} title="Settings">
+                        <Settings size={14} />
+                    </Link>
                     <Link href="/" className={styles.logo}>
                         <span className={styles.logoIcon}>R</span>
                         <span className={styles.logoText}>Readflow</span>
@@ -335,9 +338,6 @@ function DashboardContent() {
                             <List size={14} />
                         </button>
                     </div>
-                    <Link href="/settings" className={styles.settingsBtn} title="Settings">
-                        <Key size={14} />
-                    </Link>
                     <button className={styles.uploadBtn} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                         <Upload size={14} /> Upload
                     </button>
