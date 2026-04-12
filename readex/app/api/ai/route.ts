@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { getPlanLimits } from '@/lib/billing';
-import type { PlanTier } from '@/lib/billing';
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
+
+// In-memory sliding window rate limiter (per user, no DB calls)
+const RATE_LIMIT = 3;           // max requests
+const RATE_WINDOW = 60 * 1000;  // per 60 seconds
+const rateBuckets = new Map<string, number[]>();
+
+function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number } {
+    const now = Date.now();
+    const timestamps = rateBuckets.get(userId) || [];
+    const recent = timestamps.filter(t => now - t < RATE_WINDOW);
+    rateBuckets.set(userId, recent);
+
+    if (recent.length >= RATE_LIMIT) {
+        const oldest = recent[0];
+        const retryAfter = Math.ceil((oldest + RATE_WINDOW - now) / 1000);
+        return { allowed: false, retryAfter };
+    }
+    recent.push(now);
+    return { allowed: true };
+}
 
 type AiCommand = 'summarize' | 'expand' | 'fix-grammar' | 'translate' | 'generate-table' | 'polish' | 'generate-from-url' | 'chat';
 
@@ -107,19 +124,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // PREMIUM DISABLED — everything is free for now
-    // const user = await db.getUser(userId);
-    // const tier: PlanTier = (user as any)?.plan || 'free';
-    // const limits = getPlanLimits(tier);
-    //
-    // if (limits.aiCredits === 0) {
-    //     return NextResponse.json({ error: 'AI features require Pro plan' }, { status: 403 });
-    // }
-    //
-    // const currentUsage = (user as any)?.aiCreditsUsed || 0;
-    // if (currentUsage >= limits.aiCredits) {
-    //     return NextResponse.json({ error: 'AI credit limit reached this month' }, { status: 429 });
-    // }
+    // Rate limit: 3 requests per minute per user
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) {
+        return NextResponse.json(
+            { error: `Rate limited. Try again in ${rateCheck.retryAfter}s.` },
+            { status: 429, headers: { 'Retry-After': String(rateCheck.retryAfter) } },
+        );
+    }
 
     if (!OPENAI_KEY && !ANTHROPIC_KEY && !GEMINI_KEY) {
         return NextResponse.json({ error: 'AI not configured' }, { status: 503 });
@@ -143,8 +155,6 @@ export async function POST(request: NextRequest) {
 
     try {
         const result = await callAI(SYSTEM_PROMPTS[cmd], userContent);
-        // PREMIUM DISABLED — skip credit tracking
-        // await db.incrementAiCredits(userId);
         return NextResponse.json({ result });
     } catch (e) {
         const message = e instanceof Error ? e.message : 'AI request failed';
