@@ -8,11 +8,16 @@ dist
 promo/out
 promo/node_modules
 promo/dist
+
+# Claude / swarm runtime data
 /.claude-flow
 /.claude
-CLAUDE.md
-docs/FutureIdeas.md
 /readex/.claude-flow
 /readex/.data
-.mcp.json
+/readex/.readflow
 .swarm/state.json
+
+# Can Uncommit later (rn only local files, may contain sensitive info)
+/docs
+.mcp.json
+CLAUDE.md

@@ -2,6 +2,7 @@
     min-height: 100vh;
     background: var(--bg-primary);
     color: var(--fg-primary);
+    overflow-x: hidden;
 }
 
 /* ── Nav ─────────────────────────────────── */
@@ -9,9 +10,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    max-width: 1100px;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 1rem 2rem;
+    padding: 1.1rem 2rem;
+    position: relative;
+    z-index: 10;
 }
 
 .logo {
@@ -31,7 +34,7 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    font-size: 1.05rem;
+    font-size: 1.15rem;
 }
 
 .navRight { display: flex; align-items: center; gap: 0.75rem; }
@@ -40,6 +43,7 @@
     font-size: 0.82rem;
     color: var(--fg-secondary);
     text-decoration: none;
+    transition: color 0.15s;
 }
 
 .navLink:hover { color: var(--fg-primary); }
@@ -52,16 +56,33 @@
     color: #fff;
     border-radius: 6px;
     text-decoration: none;
+    transition: background 0.15s;
 }
 
 .navCta:hover { background: var(--accent-primary); }
 
 /* ── Hero ────────────────────────────────── */
 .hero {
-    max-width: 700px;
+    position: relative;
+    max-width: 900px;
     margin: 0 auto;
     text-align: center;
-    padding: 5rem 2rem 2rem;
+    padding: 6rem 2rem 3rem;
+    z-index: 2;
+}
+
+/* Ambient glow behind hero */
+.hero::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px;
+    height: 500px;
+    background: radial-gradient(ellipse, rgba(88, 166, 255, 0.06) 0%, rgba(139, 92, 246, 0.04) 40%, transparent 70%);
+    pointer-events: none;
+    z-index: -1;
 }
 
 .heroBadge {
@@ -76,63 +97,71 @@
     border-radius: 20px;
     padding: 0.3rem 0.85rem;
     margin-bottom: 1.5rem;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.02em;
+    animation: fadeUp 0.5s ease both;
 }
 
 .h1 {
-    font-size: 3.8rem;
+    font-size: 4.5rem;
     font-weight: 800;
-    letter-spacing: -0.04em;
-    line-height: 1.05;
+    letter-spacing: -0.045em;
+    line-height: 1.02;
     margin: 0 0 1.25rem;
     color: var(--fg-primary);
+    animation: fadeUp 0.6s ease both 0.1s;
 }
 
 .h1Accent {
-    background: linear-gradient(135deg, var(--accent-primary) 0%, #a78bfa 50%, #f472b6 100%);
+    background: linear-gradient(135deg, var(--accent-primary) 0%, #a78bfa 40%, #f472b6 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
 
 .heroSub {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     color: var(--fg-secondary);
     line-height: 1.6;
-    margin: 0 auto 2rem;
-    max-width: 420px;
+    margin: 0 auto 2.5rem;
+    max-width: 460px;
+    animation: fadeUp 0.6s ease both 0.2s;
 }
 
 .heroCtas {
     display: flex;
     justify-content: center;
     gap: 0.65rem;
+    animation: fadeUp 0.6s ease both 0.3s;
 }
 
 .btnPrimary {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.7rem 1.6rem;
+    padding: 0.75rem 1.8rem;
     font-size: 0.88rem;
     font-weight: 600;
-    background: var(--accent-dim);
+    background: linear-gradient(135deg, var(--accent-dim) 0%, #7c3aed 100%);
     color: #fff;
-    border-radius: 8px;
+    border-radius: 10px;
     text-decoration: none;
-    transition: background 0.15s, transform 0.1s;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 20px rgba(88, 166, 255, 0.15);
 }
 
-.btnPrimary:hover { background: var(--accent-primary); transform: translateY(-1px); }
+.btnPrimary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(88, 166, 255, 0.25);
+}
 
 .btnGhost {
     display: inline-flex;
     align-items: center;
-    padding: 0.7rem 1.6rem;
+    padding: 0.75rem 1.8rem;
     font-size: 0.88rem;
     font-weight: 500;
     border: 1px solid var(--border-subtle);
-    border-radius: 8px;
+    border-radius: 10px;
     color: var(--fg-primary);
     text-decoration: none;
     transition: background 0.15s, border-color 0.15s;
@@ -140,18 +169,56 @@
 
 .btnGhost:hover { background: rgba(255,255,255,0.03); border-color: var(--border-active); }
 
-/* ── Demo stage ──────────────────────────── */
+/* ── Floating demo stage ─────────────────── */
 .demoStage {
-    max-width: 1100px;
+    position: relative;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 2rem 2rem 0;
+    padding: 0 2rem 2rem;
+    perspective: 1200px;
+}
+
+/* Subtle grid lines behind panels */
+.demoStage::before {
+    content: '';
+    position: absolute;
+    inset: -40px;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 20%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 20%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
 }
 
 .demoGrid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    gap: 1.5rem;
     align-items: start;
+    position: relative;
+    z-index: 1;
+}
+
+.panelWrap {
+    animation: floatIn 0.8s ease both;
+}
+
+.panelWrap:nth-child(1) {
+    transform: rotate(-1.5deg) translateY(0);
+    animation-delay: 0.15s;
+}
+
+.panelWrap:nth-child(2) {
+    transform: rotate(1.5deg) translateY(12px);
+    animation-delay: 0.3s;
+}
+
+.panelWrap:hover {
+    transform: rotate(0deg) translateY(-4px) !important;
+    transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .demoCaption {
@@ -159,7 +226,9 @@
     justify-content: center;
     align-items: center;
     gap: 1.5rem;
-    padding: 1.25rem 0 0;
+    padding: 1.5rem 0 0;
+    position: relative;
+    z-index: 1;
 }
 
 .captionItem {
@@ -181,8 +250,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.55rem 0.85rem;
-    background: rgba(255, 255, 255, 0.02);
+    padding: 0.6rem 0.9rem;
+    background: rgba(255, 255, 255, 0.025);
     border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -211,10 +280,13 @@
 /* ── Terminal ────────────────────────────── */
 .term {
     border: 1px solid var(--border-subtle);
-    border-radius: 10px;
+    border-radius: 14px;
     overflow: hidden;
     background: #010409;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .termBody {
@@ -222,8 +294,8 @@
     font-family: var(--font-mono);
     font-size: 0.73rem;
     line-height: 1.65;
-    min-height: 340px;
-    max-height: 400px;
+    min-height: 360px;
+    max-height: 420px;
     overflow-y: auto;
 }
 
@@ -271,16 +343,19 @@
 /* ── Editor ──────────────────────────────── */
 .editor {
     border: 1px solid var(--border-subtle);
-    border-radius: 10px;
+    border-radius: 14px;
     overflow: hidden;
     background: var(--bg-primary);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
     position: relative;
 }
 
 .editorBody {
-    min-height: 340px;
-    max-height: 400px;
+    min-height: 360px;
+    max-height: 420px;
     overflow-y: auto;
     position: relative;
 }
@@ -338,13 +413,45 @@
     animation: fadeUp 0.3s ease;
 }
 
+/* ── Stats ribbon ────────────────────────── */
+.statsRibbon {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    padding: 2.5rem 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.stat {
+    text-align: center;
+}
+
+.statNum {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--fg-primary) 0%, var(--fg-secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.statLabel {
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+    margin-top: 0.15rem;
+}
+
 /* ── Install section ─────────────────────── */
 .installSection {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    padding: 2.5rem 2rem;
+    padding: 1.5rem 2rem 2.5rem;
 }
 
 .installBox {
@@ -353,9 +460,12 @@
     gap: 0.5rem;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    padding: 0.6rem 0.7rem 0.6rem 1.1rem;
+    border-radius: 10px;
+    padding: 0.65rem 0.75rem 0.65rem 1.2rem;
+    transition: border-color 0.15s;
 }
+
+.installBox:hover { border-color: var(--border-active); }
 
 .installBox code {
     font-family: var(--font-mono);
@@ -383,74 +493,106 @@
 
 /* ── Sections ────────────────────────────── */
 .section {
-    max-width: 820px;
+    max-width: 900px;
     margin: 0 auto;
     padding: 2rem 2rem 3rem;
 }
 
 .h2 {
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     font-weight: 700;
-    letter-spacing: -0.02em;
-    margin: 0 0 1.5rem;
+    letter-spacing: -0.025em;
+    margin: 0 0 0.4rem;
     text-align: center;
+}
+
+.sectionSub {
+    font-size: 0.9rem;
+    color: var(--fg-secondary);
+    text-align: center;
+    margin: 0 0 2rem;
 }
 
 /* ── Features ────────────────────────────── */
 .features {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.65rem;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
 }
 
 .fCard {
     display: flex;
-    gap: 0.85rem;
-    padding: 1rem 1.1rem;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 1.25rem;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    transition: border-color 0.15s;
+    border-radius: 12px;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
-.fCard:hover { border-color: var(--border-active); }
+.fCard:hover {
+    border-color: var(--border-active);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
 
 .fIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(88, 166, 255, 0.06);
     color: var(--accent-primary);
     flex-shrink: 0;
-    margin-top: 0.1rem;
 }
 
 .fTitle {
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     font-weight: 600;
-    margin: 0 0 0.2rem;
+    margin: 0;
 }
 
 .fDesc {
     font-size: 0.78rem;
     color: var(--fg-secondary);
-    line-height: 1.45;
+    line-height: 1.5;
     margin: 0;
 }
 
 /* ── CTA ─────────────────────────────────── */
 .ctaSection {
-    max-width: 820px;
+    max-width: 900px;
     margin: 0 auto;
     text-align: center;
-    padding: 2.5rem 2rem 2rem;
+    padding: 3rem 2rem 2.5rem;
     border-top: 1px solid var(--border-subtle);
+    position: relative;
+}
+
+.ctaSection::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 500px;
+    height: 300px;
+    background: radial-gradient(ellipse, rgba(139, 92, 246, 0.04) 0%, transparent 70%);
+    pointer-events: none;
 }
 
 .ctaH {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     font-weight: 700;
     margin: 0 0 0.4rem;
+    letter-spacing: -0.02em;
 }
 
 .ctaSub {
-    font-size: 0.9rem;
+    font-size: 0.92rem;
     color: var(--fg-secondary);
     margin: 0 0 1.5rem;
 }
@@ -493,24 +635,40 @@
 }
 
 @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes floatIn {
+    from { opacity: 0; transform: translateY(30px) rotate(0deg); }
+    to { opacity: 1; }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
 }
 
 /* ── Responsive ──────────────────────────── */
 @media (max-width: 900px) {
     .demoGrid { grid-template-columns: 1fr; }
-    .h1 { font-size: 2.8rem; }
+    .panelWrap:nth-child(1),
+    .panelWrap:nth-child(2) { transform: none !important; }
+    .h1 { font-size: 3.2rem; }
+    .features { grid-template-columns: repeat(2, 1fr); }
+    .statsRibbon { gap: 2rem; }
 }
 
 @media (max-width: 640px) {
-    .h1 { font-size: 2.2rem; }
+    .h1 { font-size: 2.5rem; }
     .heroSub { font-size: 0.95rem; }
     .features { grid-template-columns: 1fr; }
     .heroCtas { flex-direction: column; align-items: center; }
     .demoCaption { flex-direction: column; gap: 0.5rem; }
     .captionDivider { width: 32px; height: 1px; }
-    .hero { padding: 3rem 1.25rem 1.5rem; }
-    .demoStage { padding: 1.5rem 1rem 0; }
+    .hero { padding: 3.5rem 1.25rem 2rem; }
+    .demoStage { padding: 0 1rem 1.5rem; }
     .section { padding: 1.5rem 1.25rem 2rem; }
+    .statsRibbon { gap: 1.5rem; flex-wrap: wrap; }
+    .statNum { font-size: 1.5rem; }
 }

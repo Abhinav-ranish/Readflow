@@ -49,29 +49,20 @@ function AnimatedTerminal() {
 
     const seq = CLI_SEQUENCES[seqIdx];
 
-    // Type command
     useEffect(() => {
         if (phase !== 'typing') return;
-        if (chars >= seq.cmd.length) {
-            setPhase('output');
-            return;
-        }
+        if (chars >= seq.cmd.length) { setPhase('output'); return; }
         const t = setTimeout(() => setChars(c => c + 1), 30 + Math.random() * 25);
         return () => clearTimeout(t);
     }, [phase, chars, seq.cmd.length]);
 
-    // Reveal output lines
     useEffect(() => {
         if (phase !== 'output') return;
-        if (outputLines >= seq.output.length) {
-            setPhase('pause');
-            return;
-        }
+        if (outputLines >= seq.output.length) { setPhase('pause'); return; }
         const t = setTimeout(() => setOutputLines(n => n + 1), 180);
         return () => clearTimeout(t);
     }, [phase, outputLines, seq.output.length]);
 
-    // Pause then move to next sequence
     useEffect(() => {
         if (phase !== 'pause') return;
         const t = setTimeout(() => {
@@ -84,7 +75,6 @@ function AnimatedTerminal() {
         return () => clearTimeout(t);
     }, [phase, seq]);
 
-    // Reset history when it gets long
     useEffect(() => {
         if (history.length > 4) setHistory(h => h.slice(-2));
     }, [history.length]);
@@ -97,7 +87,6 @@ function AnimatedTerminal() {
                 <div style={{ width: 52 }} />
             </div>
             <div className={styles.termBody}>
-                {/* History */}
                 {history.map((h, hi) => (
                     <div key={hi} className={styles.termBlock}>
                         <div className={styles.termLine}>
@@ -113,7 +102,6 @@ function AnimatedTerminal() {
                     </div>
                 ))}
 
-                {/* Current */}
                 <div className={styles.termBlock}>
                     <div className={styles.termLine}>
                         <span className={styles.prompt}>$</span>
@@ -180,37 +168,27 @@ function AnimatedEditor() {
     const [aiLines, setAiLines] = useState(0);
     const [phase, setPhase] = useState<'typing' | 'ai-trigger' | 'ai-typing' | 'done'>('typing');
 
-    // Reveal editor lines one at a time
     useEffect(() => {
         if (phase !== 'typing') return;
-        if (visibleLines >= EDITOR_LINES.length) {
-            setPhase('ai-trigger');
-            return;
-        }
+        if (visibleLines >= EDITOR_LINES.length) { setPhase('ai-trigger'); return; }
         const delay = EDITOR_LINES[visibleLines] === '' ? 100 : 120 + Math.random() * 80;
         const t = setTimeout(() => setVisibleLines(n => n + 1), delay);
         return () => clearTimeout(t);
     }, [phase, visibleLines]);
 
-    // Show AI sparkle
     useEffect(() => {
         if (phase !== 'ai-trigger') return;
         const t = setTimeout(() => { setShowAI(true); setPhase('ai-typing'); }, 800);
         return () => clearTimeout(t);
     }, [phase]);
 
-    // AI writes lines
     useEffect(() => {
         if (phase !== 'ai-typing') return;
-        if (aiLines >= AI_RESULT.length) {
-            setPhase('done');
-            return;
-        }
+        if (aiLines >= AI_RESULT.length) { setPhase('done'); return; }
         const t = setTimeout(() => setAiLines(n => n + 1), 100);
         return () => clearTimeout(t);
     }, [phase, aiLines]);
 
-    // Reset
     useEffect(() => {
         if (phase !== 'done') return;
         const t = setTimeout(() => {
@@ -246,7 +224,6 @@ function AnimatedEditor() {
                         </div>
                     )}
                 </div>
-                {/* AI badge */}
                 {showAI && (
                     <div className={styles.aiBadge}>
                         <Wand2 size={12} />
@@ -284,11 +261,12 @@ export default function DemoPage() {
             <section className={styles.hero}>
                 <div className={styles.heroBadge}><Sparkles size={12} /> Open-source markdown sharing</div>
                 <h1 className={styles.h1}>
-                    Markdown that<br />
-                    <span className={styles.h1Accent}>goes places.</span>
+                    Share markdown<br />
+                    <span className={styles.h1Accent}>the modern way.</span>
                 </h1>
                 <p className={styles.heroSub}>
-                    Write in the browser. Share from the terminal. Track everything.
+                    One command from the CLI. One click from the browser.<br />
+                    Passwords, expiry, analytics, AI — all built in.
                 </p>
                 <div className={styles.heroCtas}>
                     <Link href="/" className={styles.btnPrimary}>
@@ -298,11 +276,15 @@ export default function DemoPage() {
                 </div>
             </section>
 
-            {/* Side-by-side demo */}
+            {/* Floating side-by-side demo */}
             <section className={styles.demoStage}>
                 <div className={styles.demoGrid}>
-                    <AnimatedTerminal />
-                    <AnimatedEditor />
+                    <div className={styles.panelWrap}>
+                        <AnimatedTerminal />
+                    </div>
+                    <div className={styles.panelWrap}>
+                        <AnimatedEditor />
+                    </div>
                 </div>
                 <div className={styles.demoCaption}>
                     <div className={styles.captionItem}>
@@ -314,6 +296,26 @@ export default function DemoPage() {
                         <Sparkles size={14} />
                         <span>AI writes, fixes, and translates inline</span>
                     </div>
+                </div>
+            </section>
+
+            {/* Stats ribbon */}
+            <section className={styles.statsRibbon}>
+                <div className={styles.stat}>
+                    <div className={styles.statNum}>1 cmd</div>
+                    <div className={styles.statLabel}>to share any .md</div>
+                </div>
+                <div className={styles.stat}>
+                    <div className={styles.statNum}>6</div>
+                    <div className={styles.statLabel}>AI actions built-in</div>
+                </div>
+                <div className={styles.stat}>
+                    <div className={styles.statNum}>30d</div>
+                    <div className={styles.statLabel}>max auto-expiry</div>
+                </div>
+                <div className={styles.stat}>
+                    <div className={styles.statNum}>&infin;</div>
+                    <div className={styles.statLabel}>version history</div>
                 </div>
             </section>
 
@@ -331,6 +333,7 @@ export default function DemoPage() {
             {/* Features */}
             <section className={styles.section}>
                 <h2 className={styles.h2}>Everything included</h2>
+                <p className={styles.sectionSub}>No plugins. No config. It just works.</p>
                 <div className={styles.features}>
                     {[
                         { icon: <Zap size={18} />, title: 'Instant sharing', desc: 'One click or one command. Get a link, share it anywhere.' },
