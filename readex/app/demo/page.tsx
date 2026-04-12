@@ -1,253 +1,234 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Terminal, Globe, ArrowRight, Copy, Check } from 'lucide-react';
+import { ArrowRight, Copy, Check, Sparkles, Lock, Timer, BarChart3, History, Zap } from 'lucide-react';
 import styles from './demo.module.css';
 
-const CLI_LINES = [
-    { type: 'prompt', text: '$ npx readflow-md share README.md' },
-    { type: 'blank', text: '' },
-    { type: 'output', text: '  ✓ Shared successfully!' },
-    { type: 'blank', text: '' },
-    { type: 'link', text: '  URL: https://readflow.aranish.uk/s/abc123' },
-    { type: 'output', text: '  👤 Posted to your account' },
-    { type: 'blank', text: '' },
-    { type: 'prompt', text: '$ npx readflow-md login' },
-    { type: 'blank', text: '' },
-    { type: 'output', text: '  Starting browser login...' },
-    { type: 'output', text: '  Browser opened! Approve the login there.' },
-    { type: 'blank', text: '' },
-    { type: 'output', text: '  ✓ Logged in as dev@example.com' },
-    { type: 'output', text: '  All shares will be linked to your account.' },
+const TYPING_LINES = [
+    { delay: 0, prompt: true, text: 'npx readflow-md share README.md --title "API Docs"' },
+    { delay: 1800, prompt: false, text: '' },
+    { delay: 2000, prompt: false, text: '  \u2713 Shared successfully!' },
+    { delay: 2400, prompt: false, text: '' },
+    { delay: 2600, prompt: false, text: '  URL: https://readflow.aranish.uk/s/k8xm2q', link: true },
+    { delay: 3000, prompt: false, text: '  \uD83D\uDC64 Posted to your account' },
 ];
 
-const WEB_STEPS = [
-    {
-        label: 'Write',
-        title: 'Write your markdown',
-        desc: 'Full-featured editor with live preview, AI assist, and keyboard shortcuts.',
-        mock: '# My Project\n\n## Getting Started\n\n```bash\nnpm install my-project\n```\n\nWelcome to the **best** project ever.\n\n- Fast\n- Simple\n- Beautiful',
-    },
-    {
-        label: 'Share',
-        title: 'Share instantly',
-        desc: 'One click to get a shareable link. Optional password protection and expiry.',
-        mock: null,
-    },
-    {
-        label: 'Manage',
-        title: 'Manage from your dashboard',
-        desc: 'Organize documents into projects, track views, manage versions, and collaborate.',
-        mock: null,
-    },
-];
+function TypingTerminal() {
+    const [visibleLines, setVisibleLines] = useState(0);
+    const [typedChars, setTypedChars] = useState(0);
+    const [done, setDone] = useState(false);
+    const commandText = TYPING_LINES[0].text;
+
+    useEffect(() => {
+        // Type the first command character by character
+        const typeInterval = setInterval(() => {
+            setTypedChars(prev => {
+                if (prev >= commandText.length) {
+                    clearInterval(typeInterval);
+                    return prev;
+                }
+                return prev + 1;
+            });
+        }, 35);
+        return () => clearInterval(typeInterval);
+    }, [commandText.length]);
+
+    useEffect(() => {
+        if (typedChars < commandText.length) return;
+        // After typing finishes, reveal output lines
+        const timers = TYPING_LINES.slice(1).map((line, i) =>
+            setTimeout(() => setVisibleLines(i + 2), line.delay)
+        );
+        const doneTimer = setTimeout(() => setDone(true), 3400);
+        return () => { timers.forEach(clearTimeout); clearTimeout(doneTimer); };
+    }, [typedChars, commandText.length]);
+
+    // Reset and replay every 8s
+    useEffect(() => {
+        if (!done) return;
+        const reset = setTimeout(() => {
+            setVisibleLines(0);
+            setTypedChars(0);
+            setDone(false);
+        }, 4000);
+        return () => clearTimeout(reset);
+    }, [done]);
+
+    return (
+        <div className={styles.term}>
+            <div className={styles.termBar}>
+                <div className={styles.dots}><i /><i /><i /></div>
+                <span className={styles.termTitle}>Terminal</span>
+                <div className={styles.dots} style={{ visibility: 'hidden' }}><i /><i /><i /></div>
+            </div>
+            <div className={styles.termBody}>
+                <div className={styles.termLine}>
+                    <span className={styles.termPrompt}>$</span>
+                    <span className={styles.termCmd}>{commandText.slice(0, typedChars)}</span>
+                    {typedChars < commandText.length && <span className={styles.caret} />}
+                </div>
+                {TYPING_LINES.slice(1).map((line, i) => {
+                    if (i + 2 > visibleLines) return null;
+                    if (!line.text) return <div key={i} className={styles.termBlank} />;
+                    return (
+                        <div key={i} className={`${styles.termLine} ${styles.termOut}`}>
+                            <span className={line.link ? styles.termLink : undefined}>{line.text}</span>
+                        </div>
+                    );
+                })}
+                {done && (
+                    <div className={styles.termLine}>
+                        <span className={styles.termPrompt}>$</span>
+                        <span className={styles.caret} />
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function EditorPreview() {
+    const lines = [
+        '# API Reference',
+        '',
+        '## Authentication',
+        '',
+        'All requests require a Bearer token.',
+        '',
+        '```bash',
+        'curl -H "Authorization: Bearer tk_..."',
+        '```',
+        '',
+        '## Endpoints',
+        '',
+        '| Method | Path | Description |',
+        '|--------|------|-------------|',
+        '| POST   | /api/share | Create doc |',
+        '| GET    | /s/:id | View doc |',
+    ];
+
+    return (
+        <div className={styles.editorWrap}>
+            <div className={styles.editorBar}>
+                <div className={styles.dots}><i /><i /><i /></div>
+                <span className={styles.editorUrl}>readflow.aranish.uk</span>
+                <div className={styles.dots} style={{ visibility: 'hidden' }}><i /><i /><i /></div>
+            </div>
+            <div className={styles.editorBody}>
+                <div className={styles.editorSide}>
+                    {lines.map((line, i) => (
+                        <div key={i} className={styles.eLine}>
+                            <span className={styles.eNum}>{i + 1}</span>
+                            <span className={styles.eText}>{line || '\u00A0'}</span>
+                        </div>
+                    ))}
+                </div>
+                <div className={styles.editorPreview}>
+                    <h2 className={styles.pH1}>API Reference</h2>
+                    <h3 className={styles.pH2}>Authentication</h3>
+                    <p className={styles.pText}>All requests require a Bearer token.</p>
+                    <pre className={styles.pCode}>curl -H &quot;Authorization: Bearer tk_...&quot;</pre>
+                    <h3 className={styles.pH2}>Endpoints</h3>
+                    <div className={styles.pTable}>
+                        <div className={styles.pRow}><span>POST</span><span>/api/share</span><span>Create doc</span></div>
+                        <div className={styles.pRow}><span>GET</span><span>/s/:id</span><span>View doc</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function DemoPage() {
-    const [activeTab, setActiveTab] = useState<'web' | 'cli'>('web');
-    const [webStep, setWebStep] = useState(0);
     const [copied, setCopied] = useState(false);
-
-    const handleCopy = (text: string) => {
-        navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
+    const copy = (t: string) => { navigator.clipboard.writeText(t); setCopied(true); setTimeout(() => setCopied(false), 1500); };
 
     return (
         <div className={styles.page}>
-            <header className={styles.header}>
+            {/* Nav */}
+            <nav className={styles.nav}>
                 <Link href="/" className={styles.logo}>
-                    <span className={styles.logoIcon}>R</span>
-                    <span className={styles.logoText}>Readflow</span>
+                    <span className={styles.logoR}>R</span>
+                    <span>Readflow</span>
                 </Link>
-                <div className={styles.headerLinks}>
-                    <Link href="/login" className={styles.headerLink}>Log in</Link>
-                    <Link href="/" className={styles.headerCta}>Try it</Link>
+                <div className={styles.navRight}>
+                    <Link href="/login" className={styles.navLink}>Sign in</Link>
+                    <Link href="/" className={styles.navCta}>Open Editor</Link>
                 </div>
-            </header>
+            </nav>
 
+            {/* Hero */}
             <section className={styles.hero}>
-                <h1 className={styles.heroTitle}>See Readflow in action</h1>
-                <p className={styles.heroDesc}>
-                    Share markdown files from the browser or the terminal — your docs, your way.
+                <div className={styles.heroBadge}><Sparkles size={13} /> Markdown sharing, simplified</div>
+                <h1 className={styles.h1}>Write. Share. Done.</h1>
+                <p className={styles.heroSub}>
+                    A fast markdown editor with instant sharing, version history, and analytics.
+                    Use the web app or share from your terminal.
                 </p>
+                <div className={styles.heroBtns}>
+                    <Link href="/" className={styles.btnPrimary}>
+                        Start writing <ArrowRight size={15} />
+                    </Link>
+                    <div className={styles.installBox}>
+                        <code>npx readflow-md share README.md</code>
+                        <button onClick={() => copy('npx readflow-md share README.md')} className={styles.copyBtn}>
+                            {copied ? <Check size={14} /> : <Copy size={14} />}
+                        </button>
+                    </div>
+                </div>
             </section>
 
-            {/* Tab switcher */}
-            <div className={styles.tabs}>
-                <button
-                    className={`${styles.tab} ${activeTab === 'web' ? styles.tabActive : ''}`}
-                    onClick={() => setActiveTab('web')}
-                >
-                    <Globe size={15} /> Web App
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === 'cli' ? styles.tabActive : ''}`}
-                    onClick={() => setActiveTab('cli')}
-                >
-                    <Terminal size={15} /> CLI
-                </button>
-            </div>
-
             {/* Web demo */}
-            {activeTab === 'web' && (
-                <div className={styles.demoSection}>
-                    <div className={styles.stepNav}>
-                        {WEB_STEPS.map((s, i) => (
-                            <button
-                                key={s.label}
-                                className={`${styles.stepBtn} ${webStep === i ? styles.stepActive : ''}`}
-                                onClick={() => setWebStep(i)}
-                            >
-                                <span className={styles.stepNum}>{i + 1}</span>
-                                {s.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className={styles.webDemo}>
-                        <div className={styles.webInfo}>
-                            <h3 className={styles.webTitle}>{WEB_STEPS[webStep].title}</h3>
-                            <p className={styles.webDesc}>{WEB_STEPS[webStep].desc}</p>
-                        </div>
-
-                        <div className={styles.browserMock}>
-                            <div className={styles.browserBar}>
-                                <div className={styles.browserDots}>
-                                    <span /><span /><span />
-                                </div>
-                                <div className={styles.browserUrl}>
-                                    {webStep === 0 && 'readflow.aranish.uk'}
-                                    {webStep === 1 && 'readflow.aranish.uk/s/abc123'}
-                                    {webStep === 2 && 'readflow.aranish.uk/dashboard'}
-                                </div>
-                            </div>
-                            <div className={styles.browserContent}>
-                                {webStep === 0 && (
-                                    <div className={styles.editorMock}>
-                                        <div className={styles.editorPane}>
-                                            <div className={styles.editorLabel}>Editor</div>
-                                            <div className={styles.editorCode}>
-                                                {WEB_STEPS[0].mock?.split('\n').map((line, i) => (
-                                                    <div key={i} className={styles.codeLine}>
-                                                        <span className={styles.lineNum}>{i + 1}</span>
-                                                        <span className={styles.lineText}>{line || '\u00A0'}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div className={styles.previewPane}>
-                                            <div className={styles.editorLabel}>Preview</div>
-                                            <div className={styles.previewContent}>
-                                                <h2 className={styles.mockH1}>My Project</h2>
-                                                <h3 className={styles.mockH2}>Getting Started</h3>
-                                                <div className={styles.mockCode}>npm install my-project</div>
-                                                <p className={styles.mockP}>Welcome to the <strong>best</strong> project ever.</p>
-                                                <ul className={styles.mockList}>
-                                                    <li>Fast</li><li>Simple</li><li>Beautiful</li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                                {webStep === 1 && (
-                                    <div className={styles.shareMock}>
-                                        <div className={styles.shareModal}>
-                                            <div className={styles.shareTitle}>Share this document</div>
-                                            <div className={styles.shareUrl}>
-                                                <code>readflow.aranish.uk/s/abc123</code>
-                                                <button className={styles.shareCopy}><Copy size={12} /></button>
-                                            </div>
-                                            <div className={styles.shareOptions}>
-                                                <label className={styles.shareOption}>
-                                                    <span className={styles.optionDot} /> Password protect
-                                                </label>
-                                                <label className={styles.shareOption}>
-                                                    <span className={styles.optionDot} /> Set expiry
-                                                </label>
-                                            </div>
-                                            <div className={styles.shareBtn}>Copy Link</div>
-                                        </div>
-                                    </div>
-                                )}
-                                {webStep === 2 && (
-                                    <div className={styles.dashMock}>
-                                        <div className={styles.dashHeader}>
-                                            <span className={styles.dashTitle}>Documents</span>
-                                            <span className={styles.dashNew}>+ New</span>
-                                        </div>
-                                        <div className={styles.dashGrid}>
-                                            {['README.md', 'API Docs', 'Changelog', 'Setup Guide'].map((name, i) => (
-                                                <div key={name} className={styles.dashFile} style={{ animationDelay: `${i * 0.1}s` }}>
-                                                    <div className={styles.dashFileThumb}>
-                                                        <div className={styles.dashFileLine} style={{ width: '80%' }} />
-                                                        <div className={styles.dashFileLine} style={{ width: '60%' }} />
-                                                        <div className={styles.dashFileLine} style={{ width: '90%' }} />
-                                                        <div className={styles.dashFileLine} style={{ width: '45%' }} />
-                                                    </div>
-                                                    <span className={styles.dashFileName}>{name}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <section className={styles.section}>
+                <div className={styles.sectionLabel}>Web App</div>
+                <h2 className={styles.h2}>Full-featured editor with live preview</h2>
+                <p className={styles.sectionSub}>
+                    Split-pane editing, AI assist, LaTeX, Mermaid diagrams, keyboard shortcuts.
+                </p>
+                <EditorPreview />
+            </section>
 
             {/* CLI demo */}
-            {activeTab === 'cli' && (
-                <div className={styles.demoSection}>
-                    <div className={styles.cliInfo}>
-                        <h3 className={styles.cliTitle}>Share from your terminal</h3>
-                        <p className={styles.cliDesc}>Install globally or use with npx — no config needed.</p>
-                        <div className={styles.installCmd}>
-                            <code>npm install -g readflow-md</code>
-                            <button
-                                className={styles.installCopy}
-                                onClick={() => handleCopy('npm install -g readflow-md')}
-                            >
-                                {copied ? <Check size={13} /> : <Copy size={13} />}
-                            </button>
-                        </div>
-                    </div>
+            <section className={styles.section}>
+                <div className={styles.sectionLabel}>CLI</div>
+                <h2 className={styles.h2}>Share from your terminal in seconds</h2>
+                <p className={styles.sectionSub}>
+                    One command to share any markdown file. Authenticate once, post to your dashboard.
+                </p>
+                <TypingTerminal />
+            </section>
 
-                    <div className={styles.terminalMock}>
-                        <div className={styles.terminalBar}>
-                            <div className={styles.browserDots}>
-                                <span /><span /><span />
-                            </div>
-                            <span className={styles.terminalTitle}>Terminal</span>
+            {/* Features grid */}
+            <section className={styles.section}>
+                <div className={styles.sectionLabel}>Features</div>
+                <h2 className={styles.h2}>Everything you need</h2>
+                <div className={styles.features}>
+                    {[
+                        { icon: <Zap size={18} />, title: 'Instant sharing', desc: 'Get a shareable link in one click. No signup required.' },
+                        { icon: <Lock size={18} />, title: 'Password protection', desc: 'Protect sensitive docs with a password and optional expiry.' },
+                        { icon: <History size={18} />, title: 'Version history', desc: 'Every edit is tracked. Restore any previous version.' },
+                        { icon: <BarChart3 size={18} />, title: 'View analytics', desc: 'Track views, unique visitors, and daily trends.' },
+                        { icon: <Sparkles size={18} />, title: 'AI assist', desc: 'Summarize, expand, fix grammar, translate, and polish.' },
+                        { icon: <Copy size={18} />, title: 'Export anywhere', desc: 'Download as PDF, HTML, or raw markdown.' },
+                    ].map(f => (
+                        <div key={f.title} className={styles.featureCard}>
+                            <div className={styles.featureIcon}>{f.icon}</div>
+                            <h3 className={styles.featureTitle}>{f.title}</h3>
+                            <p className={styles.featureDesc}>{f.desc}</p>
                         </div>
-                        <div className={styles.terminalBody}>
-                            {CLI_LINES.map((line, i) => (
-                                <div
-                                    key={i}
-                                    className={`${styles.termLine} ${styles[`termType_${line.type}`]}`}
-                                    style={{ animationDelay: `${i * 0.15}s` }}
-                                >
-                                    {line.text}
-                                </div>
-                            ))}
-                            <div className={styles.termCursor} style={{ animationDelay: `${CLI_LINES.length * 0.15}s` }}>
-                                <span className={styles.cursor}>$</span>
-                                <span className={styles.cursorBlink} />
-                            </div>
-                        </div>
-                    </div>
+                    ))}
                 </div>
-            )}
+            </section>
 
             {/* CTA */}
-            <section className={styles.cta}>
-                <h2 className={styles.ctaTitle}>Ready to share?</h2>
+            <section className={styles.ctaSection}>
+                <h2 className={styles.ctaH2}>Ready to try it?</h2>
+                <p className={styles.ctaSub}>No signup needed. Start writing and share instantly.</p>
                 <div className={styles.ctaBtns}>
-                    <Link href="/" className={styles.ctaPrimary}>
+                    <Link href="/" className={styles.btnPrimary}>
                         Open Editor <ArrowRight size={15} />
                     </Link>
-                    <Link href="/login" className={styles.ctaSecondary}>
+                    <Link href="/login" className={styles.btnSecondary}>
                         Sign in
                     </Link>
                 </div>
@@ -255,10 +236,10 @@ export default function DemoPage() {
 
             <footer className={styles.footer}>
                 <span>Readflow</span>
-                <span className={styles.footerDot} />
-                <Link href="/">Editor</Link>
-                <span className={styles.footerDot} />
+                <span className={styles.footDot} />
                 <a href="https://www.npmjs.com/package/readflow-md" target="_blank" rel="noopener noreferrer">npm</a>
+                <span className={styles.footDot} />
+                <a href="https://github.com/Abhinav-ranish/Readflow" target="_blank" rel="noopener noreferrer">GitHub</a>
             </footer>
         </div>
     );
