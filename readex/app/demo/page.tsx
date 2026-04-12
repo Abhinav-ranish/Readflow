@@ -1,85 +1,256 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Copy, Check, Sparkles, Lock, Timer, BarChart3, History, Zap } from 'lucide-react';
+import { ArrowRight, Copy, Check, Sparkles, Lock, BarChart3, History, Zap, Terminal, Globe, Wand2 } from 'lucide-react';
 import styles from './demo.module.css';
 
-const TYPING_LINES = [
-    { delay: 0, prompt: true, text: 'npx readflow-md share README.md --title "API Docs"' },
-    { delay: 1800, prompt: false, text: '' },
-    { delay: 2000, prompt: false, text: '  \u2713 Shared successfully!' },
-    { delay: 2400, prompt: false, text: '' },
-    { delay: 2600, prompt: false, text: '  URL: https://readflow.aranish.uk/s/k8xm2q', link: true },
-    { delay: 3000, prompt: false, text: '  \uD83D\uDC64 Posted to your account' },
+// ── CLI typing sequences ──────────────────────────────────
+const CLI_SEQUENCES = [
+    {
+        cmd: 'npx readflow-md share README.md',
+        output: [
+            { text: '', blank: true },
+            { text: '  \u2713 Shared successfully!' },
+            { text: '' , blank: true },
+            { text: '  URL: https://readflow.aranish.uk/s/k8xm2q', link: true },
+            { text: '  \uD83D\uDC64 Posted to your account' },
+        ],
+    },
+    {
+        cmd: 'npx readflow-md share docs/api.md --password s3cret --expires 7d',
+        output: [
+            { text: '', blank: true },
+            { text: '  \u2713 Shared successfully!' },
+            { text: '' , blank: true },
+            { text: '  URL: https://readflow.aranish.uk/s/t9vm3x', link: true },
+            { text: '  \uD83D\uDD12 Password-protected' },
+            { text: '  \u23F1  Expires in 7d' },
+        ],
+    },
+    {
+        cmd: 'npx readflow-md login',
+        output: [
+            { text: '', blank: true },
+            { text: '  Starting browser login...' },
+            { text: '  Browser opened! Approve the login there.' },
+            { text: '', blank: true },
+            { text: '  \u2713 Logged in as dev@example.com' },
+            { text: '  All shares will be linked to your account.' },
+        ],
+    },
 ];
 
-function TypingTerminal() {
-    const [visibleLines, setVisibleLines] = useState(0);
-    const [typedChars, setTypedChars] = useState(0);
-    const [done, setDone] = useState(false);
-    const commandText = TYPING_LINES[0].text;
+function AnimatedTerminal() {
+    const [seqIdx, setSeqIdx] = useState(0);
+    const [chars, setChars] = useState(0);
+    const [outputLines, setOutputLines] = useState(0);
+    const [phase, setPhase] = useState<'typing' | 'output' | 'pause'>('typing');
+    const [history, setHistory] = useState<{ cmd: string; output: typeof CLI_SEQUENCES[0]['output'] }[]>([]);
 
-    useEffect(() => {
-        // Type the first command character by character
-        const typeInterval = setInterval(() => {
-            setTypedChars(prev => {
-                if (prev >= commandText.length) {
-                    clearInterval(typeInterval);
-                    return prev;
-                }
-                return prev + 1;
-            });
-        }, 35);
-        return () => clearInterval(typeInterval);
-    }, [commandText.length]);
+    const seq = CLI_SEQUENCES[seqIdx];
 
+    // Type command
     useEffect(() => {
-        if (typedChars < commandText.length) return;
-        // After typing finishes, reveal output lines
-        const timers = TYPING_LINES.slice(1).map((line, i) =>
-            setTimeout(() => setVisibleLines(i + 2), line.delay)
-        );
-        const doneTimer = setTimeout(() => setDone(true), 3400);
-        return () => { timers.forEach(clearTimeout); clearTimeout(doneTimer); };
-    }, [typedChars, commandText.length]);
+        if (phase !== 'typing') return;
+        if (chars >= seq.cmd.length) {
+            setPhase('output');
+            return;
+        }
+        const t = setTimeout(() => setChars(c => c + 1), 30 + Math.random() * 25);
+        return () => clearTimeout(t);
+    }, [phase, chars, seq.cmd.length]);
 
-    // Reset and replay every 8s
+    // Reveal output lines
     useEffect(() => {
-        if (!done) return;
-        const reset = setTimeout(() => {
-            setVisibleLines(0);
-            setTypedChars(0);
-            setDone(false);
-        }, 4000);
-        return () => clearTimeout(reset);
-    }, [done]);
+        if (phase !== 'output') return;
+        if (outputLines >= seq.output.length) {
+            setPhase('pause');
+            return;
+        }
+        const t = setTimeout(() => setOutputLines(n => n + 1), 180);
+        return () => clearTimeout(t);
+    }, [phase, outputLines, seq.output.length]);
+
+    // Pause then move to next sequence
+    useEffect(() => {
+        if (phase !== 'pause') return;
+        const t = setTimeout(() => {
+            setHistory(h => [...h, { cmd: seq.cmd, output: seq.output }]);
+            setSeqIdx(i => (i + 1) % CLI_SEQUENCES.length);
+            setChars(0);
+            setOutputLines(0);
+            setPhase('typing');
+        }, 2500);
+        return () => clearTimeout(t);
+    }, [phase, seq]);
+
+    // Reset history when it gets long
+    useEffect(() => {
+        if (history.length > 4) setHistory(h => h.slice(-2));
+    }, [history.length]);
 
     return (
         <div className={styles.term}>
-            <div className={styles.termBar}>
+            <div className={styles.winBar}>
                 <div className={styles.dots}><i /><i /><i /></div>
-                <span className={styles.termTitle}>Terminal</span>
-                <div className={styles.dots} style={{ visibility: 'hidden' }}><i /><i /><i /></div>
+                <span className={styles.winLabel}><Terminal size={11} /> Terminal</span>
+                <div style={{ width: 52 }} />
             </div>
             <div className={styles.termBody}>
-                <div className={styles.termLine}>
-                    <span className={styles.termPrompt}>$</span>
-                    <span className={styles.termCmd}>{commandText.slice(0, typedChars)}</span>
-                    {typedChars < commandText.length && <span className={styles.caret} />}
-                </div>
-                {TYPING_LINES.slice(1).map((line, i) => {
-                    if (i + 2 > visibleLines) return null;
-                    if (!line.text) return <div key={i} className={styles.termBlank} />;
-                    return (
-                        <div key={i} className={`${styles.termLine} ${styles.termOut}`}>
-                            <span className={line.link ? styles.termLink : undefined}>{line.text}</span>
+                {/* History */}
+                {history.map((h, hi) => (
+                    <div key={hi} className={styles.termBlock}>
+                        <div className={styles.termLine}>
+                            <span className={styles.prompt}>$</span>
+                            <span className={styles.cmd}>{h.cmd}</span>
                         </div>
-                    );
-                })}
-                {done && (
+                        {h.output.map((o, oi) =>
+                            o.blank ? <div key={oi} className={styles.termGap} /> :
+                            <div key={oi} className={styles.termLine}>
+                                <span className={o.link ? styles.termLink : styles.termOut}>{o.text}</span>
+                            </div>
+                        )}
+                    </div>
+                ))}
+
+                {/* Current */}
+                <div className={styles.termBlock}>
                     <div className={styles.termLine}>
-                        <span className={styles.termPrompt}>$</span>
-                        <span className={styles.caret} />
+                        <span className={styles.prompt}>$</span>
+                        <span className={styles.cmd}>{seq.cmd.slice(0, chars)}</span>
+                        {phase === 'typing' && <span className={styles.caret} />}
+                    </div>
+                    {Array.from({ length: outputLines }).map((_, i) => {
+                        const o = seq.output[i];
+                        if (o.blank) return <div key={i} className={styles.termGap} />;
+                        return (
+                            <div key={i} className={`${styles.termLine} ${styles.termFadeIn}`}>
+                                <span className={o.link ? styles.termLink : styles.termOut}>{o.text}</span>
+                            </div>
+                        );
+                    })}
+                    {phase === 'pause' && (
+                        <div className={styles.termLine}>
+                            <span className={styles.prompt}>$</span>
+                            <span className={styles.caret} />
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Web editor with typing + AI ──────────────────────────
+const EDITOR_LINES = [
+    '# Project Setup Guide',
+    '',
+    '## Prerequisites',
+    '',
+    '- Node.js 18+',
+    '- npm or yarn',
+    '',
+    '## Installation',
+    '',
+    '```bash',
+    'npm install readflow-md',
+    '```',
+    '',
+    '## Quick Start',
+    '',
+    'Import and configure:',
+];
+
+const AI_RESULT = [
+    '',
+    '```javascript',
+    'import { share } from "readflow-md";',
+    '',
+    'const url = await share("README.md", {',
+    '  title: "My Docs",',
+    '  password: "optional",',
+    '});',
+    'console.log(url);',
+    '```',
+];
+
+function AnimatedEditor() {
+    const [visibleLines, setVisibleLines] = useState(0);
+    const [showAI, setShowAI] = useState(false);
+    const [aiLines, setAiLines] = useState(0);
+    const [phase, setPhase] = useState<'typing' | 'ai-trigger' | 'ai-typing' | 'done'>('typing');
+
+    // Reveal editor lines one at a time
+    useEffect(() => {
+        if (phase !== 'typing') return;
+        if (visibleLines >= EDITOR_LINES.length) {
+            setPhase('ai-trigger');
+            return;
+        }
+        const delay = EDITOR_LINES[visibleLines] === '' ? 100 : 120 + Math.random() * 80;
+        const t = setTimeout(() => setVisibleLines(n => n + 1), delay);
+        return () => clearTimeout(t);
+    }, [phase, visibleLines]);
+
+    // Show AI sparkle
+    useEffect(() => {
+        if (phase !== 'ai-trigger') return;
+        const t = setTimeout(() => { setShowAI(true); setPhase('ai-typing'); }, 800);
+        return () => clearTimeout(t);
+    }, [phase]);
+
+    // AI writes lines
+    useEffect(() => {
+        if (phase !== 'ai-typing') return;
+        if (aiLines >= AI_RESULT.length) {
+            setPhase('done');
+            return;
+        }
+        const t = setTimeout(() => setAiLines(n => n + 1), 100);
+        return () => clearTimeout(t);
+    }, [phase, aiLines]);
+
+    // Reset
+    useEffect(() => {
+        if (phase !== 'done') return;
+        const t = setTimeout(() => {
+            setVisibleLines(0);
+            setShowAI(false);
+            setAiLines(0);
+            setPhase('typing');
+        }, 4000);
+        return () => clearTimeout(t);
+    }, [phase]);
+
+    const allLines = [...EDITOR_LINES.slice(0, visibleLines), ...AI_RESULT.slice(0, aiLines)];
+
+    return (
+        <div className={styles.editor}>
+            <div className={styles.winBar}>
+                <div className={styles.dots}><i /><i /><i /></div>
+                <span className={styles.winLabel}><Globe size={11} /> readflow.aranish.uk</span>
+                <div style={{ width: 52 }} />
+            </div>
+            <div className={styles.editorBody}>
+                <div className={styles.editorCode}>
+                    {allLines.map((line, i) => (
+                        <div key={i} className={`${styles.eLine} ${i >= visibleLines ? styles.aiLine : ''}`}>
+                            <span className={styles.eNum}>{i + 1}</span>
+                            <span className={styles.eText}>{line || '\u00A0'}</span>
+                        </div>
+                    ))}
+                    {phase === 'typing' && (
+                        <div className={styles.eLine}>
+                            <span className={styles.eNum}>{visibleLines + 1}</span>
+                            <span className={styles.caret} />
+                        </div>
+                    )}
+                </div>
+                {/* AI badge */}
+                {showAI && (
+                    <div className={styles.aiBadge}>
+                        <Wand2 size={12} />
+                        <span>AI generating code example...</span>
                     </div>
                 )}
             </div>
@@ -87,65 +258,17 @@ function TypingTerminal() {
     );
 }
 
-function EditorPreview() {
-    const lines = [
-        '# API Reference',
-        '',
-        '## Authentication',
-        '',
-        'All requests require a Bearer token.',
-        '',
-        '```bash',
-        'curl -H "Authorization: Bearer tk_..."',
-        '```',
-        '',
-        '## Endpoints',
-        '',
-        '| Method | Path | Description |',
-        '|--------|------|-------------|',
-        '| POST   | /api/share | Create doc |',
-        '| GET    | /s/:id | View doc |',
-    ];
-
-    return (
-        <div className={styles.editorWrap}>
-            <div className={styles.editorBar}>
-                <div className={styles.dots}><i /><i /><i /></div>
-                <span className={styles.editorUrl}>readflow.aranish.uk</span>
-                <div className={styles.dots} style={{ visibility: 'hidden' }}><i /><i /><i /></div>
-            </div>
-            <div className={styles.editorBody}>
-                <div className={styles.editorSide}>
-                    {lines.map((line, i) => (
-                        <div key={i} className={styles.eLine}>
-                            <span className={styles.eNum}>{i + 1}</span>
-                            <span className={styles.eText}>{line || '\u00A0'}</span>
-                        </div>
-                    ))}
-                </div>
-                <div className={styles.editorPreview}>
-                    <h2 className={styles.pH1}>API Reference</h2>
-                    <h3 className={styles.pH2}>Authentication</h3>
-                    <p className={styles.pText}>All requests require a Bearer token.</p>
-                    <pre className={styles.pCode}>curl -H &quot;Authorization: Bearer tk_...&quot;</pre>
-                    <h3 className={styles.pH2}>Endpoints</h3>
-                    <div className={styles.pTable}>
-                        <div className={styles.pRow}><span>POST</span><span>/api/share</span><span>Create doc</span></div>
-                        <div className={styles.pRow}><span>GET</span><span>/s/:id</span><span>View doc</span></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
+// ── Main page ─────────────────────────────────────────────
 export default function DemoPage() {
     const [copied, setCopied] = useState(false);
-    const copy = (t: string) => { navigator.clipboard.writeText(t); setCopied(true); setTimeout(() => setCopied(false), 1500); };
+    const copy = (t: string) => {
+        navigator.clipboard.writeText(t);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    };
 
     return (
         <div className={styles.page}>
-            {/* Nav */}
             <nav className={styles.nav}>
                 <Link href="/" className={styles.logo}>
                     <span className={styles.logoR}>R</span>
@@ -159,62 +282,70 @@ export default function DemoPage() {
 
             {/* Hero */}
             <section className={styles.hero}>
-                <div className={styles.heroBadge}><Sparkles size={13} /> Markdown sharing, simplified</div>
-                <h1 className={styles.h1}>Write. Share. Done.</h1>
+                <div className={styles.heroBadge}><Sparkles size={12} /> Open-source markdown sharing</div>
+                <h1 className={styles.h1}>
+                    Markdown that<br />
+                    <span className={styles.h1Accent}>goes places.</span>
+                </h1>
                 <p className={styles.heroSub}>
-                    A fast markdown editor with instant sharing, version history, and analytics.
-                    Use the web app or share from your terminal.
+                    Write in the browser. Share from the terminal. Track everything.
                 </p>
-                <div className={styles.heroBtns}>
+                <div className={styles.heroCtas}>
                     <Link href="/" className={styles.btnPrimary}>
-                        Start writing <ArrowRight size={15} />
+                        Open Editor <ArrowRight size={15} />
                     </Link>
-                    <div className={styles.installBox}>
-                        <code>npx readflow-md share README.md</code>
-                        <button onClick={() => copy('npx readflow-md share README.md')} className={styles.copyBtn}>
-                            {copied ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
+                    <Link href="/login" className={styles.btnGhost}>Sign in</Link>
+                </div>
+            </section>
+
+            {/* Side-by-side demo */}
+            <section className={styles.demoStage}>
+                <div className={styles.demoGrid}>
+                    <AnimatedTerminal />
+                    <AnimatedEditor />
+                </div>
+                <div className={styles.demoCaption}>
+                    <div className={styles.captionItem}>
+                        <Terminal size={14} />
+                        <span>CLI shares any .md file in one command</span>
+                    </div>
+                    <div className={styles.captionDivider} />
+                    <div className={styles.captionItem}>
+                        <Sparkles size={14} />
+                        <span>AI writes, fixes, and translates inline</span>
                     </div>
                 </div>
             </section>
 
-            {/* Web demo */}
-            <section className={styles.section}>
-                <div className={styles.sectionLabel}>Web App</div>
-                <h2 className={styles.h2}>Full-featured editor with live preview</h2>
-                <p className={styles.sectionSub}>
-                    Split-pane editing, AI assist, LaTeX, Mermaid diagrams, keyboard shortcuts.
-                </p>
-                <EditorPreview />
+            {/* Install */}
+            <section className={styles.installSection}>
+                <div className={styles.installBox}>
+                    <code>npm install -g readflow-md</code>
+                    <button onClick={() => copy('npm install -g readflow-md')} className={styles.copyBtn}>
+                        {copied ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                </div>
+                <span className={styles.installNote}>or use npx without installing</span>
             </section>
 
-            {/* CLI demo */}
+            {/* Features */}
             <section className={styles.section}>
-                <div className={styles.sectionLabel}>CLI</div>
-                <h2 className={styles.h2}>Share from your terminal in seconds</h2>
-                <p className={styles.sectionSub}>
-                    One command to share any markdown file. Authenticate once, post to your dashboard.
-                </p>
-                <TypingTerminal />
-            </section>
-
-            {/* Features grid */}
-            <section className={styles.section}>
-                <div className={styles.sectionLabel}>Features</div>
-                <h2 className={styles.h2}>Everything you need</h2>
+                <h2 className={styles.h2}>Everything included</h2>
                 <div className={styles.features}>
                     {[
-                        { icon: <Zap size={18} />, title: 'Instant sharing', desc: 'Get a shareable link in one click. No signup required.' },
-                        { icon: <Lock size={18} />, title: 'Password protection', desc: 'Protect sensitive docs with a password and optional expiry.' },
-                        { icon: <History size={18} />, title: 'Version history', desc: 'Every edit is tracked. Restore any previous version.' },
-                        { icon: <BarChart3 size={18} />, title: 'View analytics', desc: 'Track views, unique visitors, and daily trends.' },
-                        { icon: <Sparkles size={18} />, title: 'AI assist', desc: 'Summarize, expand, fix grammar, translate, and polish.' },
-                        { icon: <Copy size={18} />, title: 'Export anywhere', desc: 'Download as PDF, HTML, or raw markdown.' },
+                        { icon: <Zap size={18} />, title: 'Instant sharing', desc: 'One click or one command. Get a link, share it anywhere.' },
+                        { icon: <Lock size={18} />, title: 'Password & expiry', desc: 'Protect docs with passwords. Set auto-expiry from 1h to 30d.' },
+                        { icon: <History size={18} />, title: 'Version history', desc: 'Every edit saved. Compare and restore any version.' },
+                        { icon: <BarChart3 size={18} />, title: 'View analytics', desc: 'Track total views, unique visitors, and daily trends.' },
+                        { icon: <Wand2 size={18} />, title: 'AI assistant', desc: 'Summarize, expand, fix grammar, translate, generate tables.' },
+                        { icon: <Terminal size={18} />, title: 'CLI & API', desc: 'Share from CI/CD, scripts, or AI agents. Full REST API.' },
                     ].map(f => (
-                        <div key={f.title} className={styles.featureCard}>
-                            <div className={styles.featureIcon}>{f.icon}</div>
-                            <h3 className={styles.featureTitle}>{f.title}</h3>
-                            <p className={styles.featureDesc}>{f.desc}</p>
+                        <div key={f.title} className={styles.fCard}>
+                            <div className={styles.fIcon}>{f.icon}</div>
+                            <div>
+                                <h3 className={styles.fTitle}>{f.title}</h3>
+                                <p className={styles.fDesc}>{f.desc}</p>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -222,15 +353,13 @@ export default function DemoPage() {
 
             {/* CTA */}
             <section className={styles.ctaSection}>
-                <h2 className={styles.ctaH2}>Ready to try it?</h2>
-                <p className={styles.ctaSub}>No signup needed. Start writing and share instantly.</p>
+                <h2 className={styles.ctaH}>Start sharing</h2>
+                <p className={styles.ctaSub}>No signup required. Write and share in seconds.</p>
                 <div className={styles.ctaBtns}>
                     <Link href="/" className={styles.btnPrimary}>
                         Open Editor <ArrowRight size={15} />
                     </Link>
-                    <Link href="/login" className={styles.btnSecondary}>
-                        Sign in
-                    </Link>
+                    <Link href="/login" className={styles.btnGhost}>Sign in</Link>
                 </div>
             </section>
 
