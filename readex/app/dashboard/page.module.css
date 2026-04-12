@@ -948,6 +948,124 @@
     margin: 3px 6px;
 }
 
+/* ==================== MODAL ==================== */
+
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.modal {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    width: 380px;
+    max-width: 90vw;
+    max-height: 70vh;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.modalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.modalHeader h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.modalClose {
+    color: var(--fg-muted);
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.1s;
+}
+.modalClose:hover { color: var(--fg-primary); background-color: rgba(255, 255, 255, 0.06); }
+
+.modalBody {
+    padding: 1rem 1.25rem;
+    overflow-y: auto;
+    max-height: 50vh;
+}
+
+.modalSection {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 0.75rem;
+}
+
+.modalLabel {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--fg-muted);
+    padding: 0 0 6px;
+}
+
+.modalOption {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+    color: var(--fg-secondary);
+    background: none;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+.modalOption:hover { background-color: rgba(56, 139, 253, 0.1); color: var(--fg-primary); }
+
+.modalNewFolder {
+    display: flex;
+    gap: 8px;
+}
+
+.modalInput {
+    flex: 1;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+    color: var(--fg-primary);
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.modalInput:focus { border-color: var(--accent-primary); }
+
+.modalCreateBtn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #fff;
+    background-color: var(--accent-dim);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.modalCreateBtn:hover { background-color: var(--accent-primary); }
+.modalCreateBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* ==================== MARQUEE ==================== */
 
 .marquee {

@@ -52,10 +52,15 @@ function DashboardContent() {
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
     const [creatingFolder, setCreatingFolder] = useState(false);
+    const [emptyFolders, setEmptyFolders] = useState<string[]>([]);
+    const [moveModal, setMoveModal] = useState<{ docIds: string[] } | null>(null);
+    const [moveNewFolder, setMoveNewFolder] = useState('');
+    const [renameDoc, setRenameDoc] = useState<{ id: string; title: string } | null>(null);
     const [newFolderName, setNewFolderName] = useState('');
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; docId: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const gridRef = useRef<HTMLDivElement>(null);
+    const internalDrag = useRef(false);
 
     // Marquee state for finder view
     const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -140,17 +145,16 @@ function DashboardContent() {
             body: JSON.stringify({ folder }),
         });
         setDocs(prev => prev.map(d => d.id === docId ? { ...d, folder: folder || undefined } : d));
+        // If moving into an empty folder, it's no longer empty
+        if (folder) setEmptyFolders(prev => prev.filter(f => f !== folder));
     };
 
     const handleCreateFolder = () => {
         const name = newFolderName.trim();
         if (!name) return;
-        // "Create" a folder by assigning a placeholder doc or just adding to UI
-        // Folders are virtual — they exist when docs have them. Create by moving a new doc.
-        // Instead, just set the folder on a selected doc, or create a blank state
+        setEmptyFolders(prev => prev.includes(name) ? prev : [...prev, name]);
         setCreatingFolder(false);
         setNewFolderName('');
-        // We just navigate into the folder — it'll be empty until user drags docs in
         setActiveFolder(name);
     };
 
@@ -166,21 +170,37 @@ function DashboardContent() {
         setSelected(new Set());
     };
 
-    const handleBulkMove = async () => {
-        const folder = prompt('Move to folder (or empty to remove from folder):');
-        if (folder === null) return;
-        const value = folder.trim() || null;
-        const ids = [...selected];
-        await Promise.allSettled(ids.map(id => handleMoveToFolder(id, value)));
+    const handleBulkMove = () => {
+        setMoveModal({ docIds: [...selected] });
+        setMoveNewFolder('');
+    };
+    const handleMoveModalSelect = async (folder: string | null) => {
+        if (!moveModal) return;
+        await Promise.allSettled(moveModal.docIds.map(id => handleMoveToFolder(id, folder)));
+        setMoveModal(null);
         setSelected(new Set());
+    };
+
+    const handleRename = async (docId: string, newTitle: string) => {
+        const title = newTitle.trim();
+        if (!title) return;
+        await fetch(`/api/share/${docId}/edit`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title }),
+        });
+        setDocs(prev => prev.map(d => d.id === docId ? { ...d, title } : d));
+        setRenameDoc(null);
     };
 
     // Drag and drop files into folders
     const handleDocDragStart = (e: React.DragEvent, docId: string) => {
+        internalDrag.current = true;
         const dragIds = selected.has(docId) ? [...selected] : [docId];
         e.dataTransfer.setData('application/readflow-docs', JSON.stringify(dragIds));
         e.dataTransfer.effectAllowed = 'move';
     };
+    const handleDocDragEnd = () => { internalDrag.current = false; setDragging(false); };
 
     const handleFolderDrop = async (e: React.DragEvent, folder: string) => {
         e.preventDefault();
@@ -234,7 +254,11 @@ function DashboardContent() {
         setTimeout(() => setUploadMsg(null), 3000);
     };
 
-    const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragging(true); };
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        // Only show upload overlay for external file drops, not internal doc drags
+        if (!internalDrag.current) setDragging(true);
+    };
     const handleDragLeave = (e: React.DragEvent) => {
         if (e.currentTarget === e.target || !e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false);
     };
@@ -287,7 +311,10 @@ function DashboardContent() {
     }, []);
 
     // Derived data
-    const folders = [...new Set(docs.filter(d => d.folder).map(d => d.folder!))].sort();
+    const folders = [...new Set([
+        ...docs.filter(d => d.folder).map(d => d.folder!),
+        ...emptyFolders,
+    ])].sort();
     const currentDocs = activeFolder
         ? docs.filter(d => d.folder === activeFolder)
         : docs.filter(d => !d.folder);
@@ -409,6 +436,7 @@ function DashboardContent() {
                                             onClick={e => onSelectItem(doc.id, e)}
                                             draggable
                                             onDragStart={e => handleDocDragStart(e, doc.id)}
+                                            onDragEnd={handleDocDragEnd}
                                         >
                                             <FileText size={12} />
                                             <span>{doc.title || 'Untitled'}</span>
@@ -469,6 +497,7 @@ function DashboardContent() {
                                         onClick={e => onSelectItem(doc.id, e)}
                                         draggable
                                         onDragStart={e => handleDocDragStart(e, doc.id)}
+                                        onDragEnd={handleDocDragEnd}
                                         onContextMenu={e => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, docId: doc.id }); }}
                                     >
                                         <FileText size={16} className={styles.explorerRowIcon} />
@@ -567,6 +596,7 @@ function DashboardContent() {
                                 onDelete={handleDelete}
                                 onPin={handlePin}
                                 onDragStart={handleDocDragStart}
+                                onDragEnd={handleDocDragEnd}
                                 onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, docId: doc.id }); }}
                             />
                         ))}
@@ -617,26 +647,13 @@ function DashboardContent() {
                         <button className={styles.contextItem} onClick={() => { handlePin(doc.id, !!doc.pinned); setContextMenu(null); }}>
                             {doc.pinned ? <><PinOff size={13} /> Unpin</> : <><Pin size={13} /> Pin</>}
                         </button>
+                        <button className={styles.contextItem} onClick={() => { setRenameDoc({ id: doc.id, title: doc.title || 'Untitled' }); setContextMenu(null); }}>
+                            <Pencil size={13} /> Rename
+                        </button>
                         <div className={styles.contextDivider} />
-                        {folders.length > 0 && (
-                            <div className={styles.contextSubmenu}>
-                                <span className={styles.contextLabel}>Move to project</span>
-                                {folders.map(f => (
-                                    <button key={f} className={styles.contextItem} onClick={() => { handleMoveToFolder(doc.id, f); setContextMenu(null); }}>
-                                        <FolderOpen size={13} /> {f}
-                                    </button>
-                                ))}
-                                {doc.folder && (
-                                    <button className={styles.contextItem} onClick={() => { handleMoveToFolder(doc.id, null); setContextMenu(null); }}>
-                                        <X size={13} /> Remove from project
-                                    </button>
-                                )}
-                            </div>
-                        )}
-                        <button className={styles.contextItem} onClick={() => {
-                            const name = prompt('New project name:');
-                            if (name?.trim()) { handleMoveToFolder(doc.id, name.trim()); setContextMenu(null); }
-                        }}><FolderPlus size={13} /> New project</button>
+                        <button className={styles.contextItem} onClick={() => { setMoveModal({ docIds: [doc.id] }); setMoveNewFolder(''); setContextMenu(null); }}>
+                            <FolderOpen size={13} /> Move to project...
+                        </button>
                         <div className={styles.contextDivider} />
                         <button className={`${styles.contextItem} ${styles.contextDanger}`} onClick={() => { handleDelete(doc.id); setContextMenu(null); }}>
                             <Trash2 size={13} /> Delete
@@ -644,17 +661,96 @@ function DashboardContent() {
                     </div>
                 );
             })()}
+
+            {/* Move modal */}
+            {moveModal && (
+                <div className={styles.modalOverlay} onClick={() => setMoveModal(null)}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                        <div className={styles.modalHeader}>
+                            <h3>Move to project</h3>
+                            <button className={styles.modalClose} onClick={() => setMoveModal(null)}><X size={16} /></button>
+                        </div>
+                        <div className={styles.modalBody}>
+                            {folders.length > 0 && (
+                                <div className={styles.modalSection}>
+                                    <span className={styles.modalLabel}>Existing projects</span>
+                                    {folders.map(f => (
+                                        <button key={f} className={styles.modalOption} onClick={() => handleMoveModalSelect(f)}>
+                                            <FolderOpen size={14} /> {f}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <div className={styles.modalSection}>
+                                <span className={styles.modalLabel}>New project</span>
+                                <div className={styles.modalNewFolder}>
+                                    <input
+                                        autoFocus
+                                        className={styles.modalInput}
+                                        value={moveNewFolder}
+                                        onChange={e => setMoveNewFolder(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Enter' && moveNewFolder.trim()) handleMoveModalSelect(moveNewFolder.trim()); }}
+                                        placeholder="Project name..."
+                                    />
+                                    <button
+                                        className={styles.modalCreateBtn}
+                                        disabled={!moveNewFolder.trim()}
+                                        onClick={() => { if (moveNewFolder.trim()) handleMoveModalSelect(moveNewFolder.trim()); }}
+                                    >Create & Move</button>
+                                </div>
+                            </div>
+                            {moveModal.docIds.length === 1 && docs.find(d => d.id === moveModal.docIds[0])?.folder && (
+                                <>
+                                    <div className={styles.contextDivider} />
+                                    <button className={styles.modalOption} onClick={() => handleMoveModalSelect(null)}>
+                                        <X size={14} /> Remove from project
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Rename inline input */}
+            {renameDoc && (
+                <div className={styles.modalOverlay} onClick={() => setRenameDoc(null)}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                        <div className={styles.modalHeader}>
+                            <h3>Rename document</h3>
+                            <button className={styles.modalClose} onClick={() => setRenameDoc(null)}><X size={16} /></button>
+                        </div>
+                        <div className={styles.modalBody}>
+                            <input
+                                autoFocus
+                                className={styles.modalInput}
+                                defaultValue={renameDoc.title}
+                                onKeyDown={e => { if (e.key === 'Enter') handleRename(renameDoc.id, (e.target as HTMLInputElement).value); if (e.key === 'Escape') setRenameDoc(null); }}
+                            />
+                            <button
+                                className={styles.modalCreateBtn}
+                                style={{ marginTop: '0.75rem' }}
+                                onClick={() => {
+                                    const input = document.querySelector(`.${styles.modalBody} input`) as HTMLInputElement;
+                                    if (input) handleRename(renameDoc.id, input.value);
+                                }}
+                            >Rename</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
-function DocFileItem({ doc, selected, onSelect, onDelete, onPin, onDragStart, onContextMenu }: {
+function DocFileItem({ doc, selected, onSelect, onDelete, onPin, onDragStart, onDragEnd, onContextMenu }: {
     doc: DocEntry;
     selected: boolean;
     onSelect: (id: string, e: React.MouseEvent) => void;
     onDelete: (id: string) => void;
     onPin: (id: string, pinned: boolean) => void;
     onDragStart: (e: React.DragEvent, id: string) => void;
+    onDragEnd?: () => void;
     onContextMenu: (e: React.MouseEvent, docId: string) => void;
 }) {
     const previewLines = (doc.preview || '').replace(/[#*`>\-\[\]()!]/g, '').split('\n').filter(l => l.trim()).slice(0, 6);
@@ -665,6 +761,7 @@ function DocFileItem({ doc, selected, onSelect, onDelete, onPin, onDragStart, on
             className={`${styles.finderItem} ${styles.fileItem} ${selected ? styles.fileSelected : ''} ${doc.pinned ? styles.filePinned : ''}`}
             draggable
             onDragStart={e => onDragStart(e, doc.id)}
+            onDragEnd={onDragEnd}
             onClick={e => { e.stopPropagation(); onSelect(doc.id, e); }}
             onContextMenu={e => { e.preventDefault(); onContextMenu(e, doc.id); }}
         >
