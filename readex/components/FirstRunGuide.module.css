@@ -1,7 +1,8 @@
 .overlay {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--overlay-bg);
+    backdrop-filter: blur(6px);
     z-index: 500;
     display: flex;
     align-items: center;
@@ -14,20 +15,22 @@
     to { opacity: 1; }
 }
 
-.tooltip {
+.card {
     background-color: var(--bg-tertiary);
     border: 1px solid var(--border-subtle);
-    border-radius: 14px;
-    padding: 24px 28px;
-    width: 320px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    border-radius: 16px;
+    padding: 32px 28px 24px;
+    width: 360px;
+    max-width: 90vw;
+    box-shadow: 0 16px 48px var(--shadow-color);
     position: relative;
-    animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    text-align: center;
 }
 
 @keyframes scaleIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
+    from { opacity: 0; transform: scale(0.95) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .close {
@@ -35,18 +38,33 @@
     top: 12px;
     right: 12px;
     color: var(--fg-muted);
-    padding: 4px;
-    border-radius: 4px;
+    padding: 6px;
+    border-radius: 6px;
     cursor: pointer;
+    transition: all 0.15s;
 }
 
 .close:hover {
     color: var(--fg-primary);
+    background-color: var(--hover-bg-strong);
+}
+
+.iconBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background-color: rgba(56, 139, 253, 0.12);
+    color: var(--accent-primary);
+    margin-bottom: 16px;
 }
 
 .stepIndicator {
     display: flex;
     gap: 6px;
+    justify-content: center;
     margin-bottom: 16px;
 }
 
@@ -55,12 +73,19 @@
     height: 8px;
     border-radius: 50%;
     background-color: var(--border-subtle);
+    border: none;
+    cursor: pointer;
+    padding: 0;
     transition: all 0.2s;
+}
+
+.dot:hover {
+    background-color: var(--border-active);
 }
 
 .dot.active {
     background-color: var(--accent-primary);
-    width: 20px;
+    width: 24px;
     border-radius: 4px;
 }
 
@@ -70,40 +95,56 @@
 
 .stepTitle {
     font-family: var(--font-display);
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     color: var(--fg-primary);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
 .stepDesc {
     color: var(--fg-secondary);
     font-size: 0.9rem;
-    line-height: 1.45;
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+
+.stepHint {
+    color: var(--fg-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
     margin-bottom: 20px;
+    font-style: italic;
 }
 
 .actions {
     display: flex;
     justify-content: space-between;
+    gap: 8px;
 }
 
-.skipBtn {
+.skipBtn,
+.backBtn {
     color: var(--fg-muted);
     font-size: 0.85rem;
     cursor: pointer;
-    padding: 6px 12px;
-    border-radius: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    transition: all 0.15s;
 }
 
-.skipBtn:hover {
+.skipBtn:hover,
+.backBtn:hover {
     color: var(--fg-secondary);
+    background-color: var(--hover-bg-strong);
 }
 
 .nextBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     background-color: var(--accent-dim);
     color: #fff;
-    padding: 8px 20px;
-    border-radius: 6px;
+    padding: 8px 22px;
+    border-radius: 8px;
     font-size: 0.88rem;
     font-weight: 500;
     cursor: pointer;
@@ -112,4 +153,11 @@
 
 .nextBtn:hover {
     background-color: var(--accent-primary);
+}
+
+.counter {
+    margin-top: 16px;
+    font-size: 0.72rem;
+    color: var(--fg-muted);
+    letter-spacing: 0.03em;
 }
