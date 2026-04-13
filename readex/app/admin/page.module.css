@@ -69,7 +69,7 @@
 }
 
 .backBtn:hover {
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: var(--hover-bg-strong);
     color: var(--fg-primary);
 }
 
@@ -261,7 +261,7 @@
 }
 
 .planFree {
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--hover-bg);
     border-color: var(--border-subtle);
     color: var(--fg-secondary);
 }
@@ -308,7 +308,7 @@
 }
 
 .finderItem:hover {
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--hover-bg);
 }
 
 .finderName {
@@ -365,13 +365,13 @@
     padding: 1px 6px;
     border-radius: 3px;
     font-size: 0.65rem;
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: var(--hover-bg-strong);
     color: var(--fg-muted);
     text-transform: capitalize;
 }
 
 .githubBadge {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--hover-bg-strong);
     color: var(--fg-secondary);
 }
 
@@ -504,7 +504,7 @@
 .fileLine {
     display: block;
     height: 3px;
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--hover-bg-strong);
     border-radius: 1px;
 }
 
@@ -520,7 +520,7 @@
     display: block;
     font-size: 0.35rem;
     line-height: 1.4;
-    color: rgba(255, 255, 255, 0.35);
+    color: var(--fg-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -534,7 +534,7 @@
     font-size: 0.6rem;
     font-family: var(--font-mono);
     color: var(--fg-muted);
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--hover-bg);
     padding: 1px 4px;
     border-radius: 2px;
 }
@@ -543,7 +543,7 @@
     font-size: 0.65rem;
     font-family: var(--font-mono);
     color: var(--fg-muted);
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--hover-bg);
     padding: 1px 6px;
     border-radius: 3px;
     max-width: 120px;
@@ -589,7 +589,7 @@
 }
 
 .fileActionBtn:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--hover-bg-strong);
     color: var(--fg-primary);
 }
 
@@ -693,11 +693,11 @@
     left: 50%;
     transform: translateX(-50%);
     z-index: 100;
-    background-color: rgba(22, 27, 34, 0.92);
+    background-color: color-mix(in srgb, var(--bg-tertiary) 92%, transparent);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(56, 139, 253, 0.3);
     border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 24px var(--shadow-color);
 }
 
 .bulkCount {
@@ -723,7 +723,7 @@
 }
 
 .bulkBtn:hover {
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: var(--hover-bg-strong);
     color: var(--fg-primary);
 }
 
@@ -751,7 +751,7 @@
 
 .bulkBtnClear:hover {
     color: var(--fg-primary);
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: var(--hover-bg-strong);
 }
 
 /* Marquee selection rectangle */

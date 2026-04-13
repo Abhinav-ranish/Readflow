@@ -72,7 +72,7 @@
     padding: 0.2em 0.4em;
     margin: 0;
     font-size: 85%;
-    background-color: rgba(110, 118, 129, 0.4);
+    background-color: var(--code-bg);
     border-radius: 6px;
     font-family: var(--font-mono);
 }
@@ -270,7 +270,7 @@
 
 /* Ins / mark */
 .markdownBody mark {
-    background-color: rgba(174, 124, 20, 0.4);
+    background-color: var(--mark-bg);
     color: inherit;
     padding: 0.1em 0.2em;
     border-radius: 2px;

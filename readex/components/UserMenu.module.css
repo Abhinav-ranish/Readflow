@@ -18,7 +18,7 @@
 .signInBtn:hover {
     color: var(--fg-primary);
     border-color: var(--fg-secondary);
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--hover-bg);
 }
 
 .avatar {
@@ -103,6 +103,6 @@
 }
 
 .menuItem:hover {
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--hover-bg);
     color: var(--fg-primary);
 }

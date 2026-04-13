@@ -113,7 +113,7 @@
     transition: all 0.12s;
 }
 
-.viewBtn:hover { color: var(--fg-primary); background-color: rgba(255, 255, 255, 0.04); }
+.viewBtn:hover { color: var(--fg-primary); background-color: var(--hover-bg); }
 
 .viewActive {
     background-color: rgba(56, 139, 253, 0.1) !important;
@@ -153,7 +153,7 @@
     transition: all 0.15s;
 }
 
-.uploadBtn:hover:not(:disabled) { background-color: rgba(255, 255, 255, 0.06); color: var(--fg-primary); }
+.uploadBtn:hover:not(:disabled) { background-color: var(--hover-bg-strong); color: var(--fg-primary); }
 .uploadBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .settingsBtn {
@@ -170,7 +170,7 @@
     transition: all 0.15s;
 }
 
-.settingsBtn:hover { background-color: rgba(255, 255, 255, 0.06); color: var(--fg-primary); }
+.settingsBtn:hover { background-color: var(--hover-bg-strong); color: var(--fg-primary); }
 
 /* Settings Panel */
 
@@ -188,7 +188,7 @@
 .tokenRow { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .tokenValue { font-family: var(--font-mono); font-size: 0.82rem; background-color: var(--bg-secondary); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-subtle); color: var(--fg-primary); word-break: break-all; }
 .tokenAction { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--border-subtle); background: none; color: var(--fg-secondary); cursor: pointer; flex-shrink: 0; }
-.tokenAction:hover { background-color: rgba(255, 255, 255, 0.06); color: var(--fg-primary); }
+.tokenAction:hover { background-color: var(--hover-bg-strong); color: var(--fg-primary); }
 .tokenNone { font-size: 0.82rem; color: var(--fg-muted); font-style: italic; }
 .tokenMsg { font-size: 0.78rem; color: var(--accent-primary); margin-bottom: 8px; }
 .tokenActions { display: flex; gap: 8px; margin-bottom: 12px; }
@@ -201,7 +201,7 @@
 /* Upload */
 
 .dropActive { position: relative; }
-.dropOverlay { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background-color: rgba(13, 17, 23, 0.92); border: 3px dashed var(--accent-primary); border-radius: 12px; color: var(--accent-primary); font-size: 1rem; font-weight: 500; pointer-events: none; }
+.dropOverlay { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background-color: color-mix(in srgb, var(--bg-primary) 92%, transparent); border: 3px dashed var(--accent-primary); border-radius: 12px; color: var(--accent-primary); font-size: 1rem; font-weight: 500; pointer-events: none; }
 .uploadMsg { padding: 10px 16px; margin-bottom: 1rem; background-color: rgba(56, 139, 253, 0.08); border: 1px solid rgba(56, 139, 253, 0.2); border-radius: 8px; font-size: 0.85rem; color: var(--accent-primary); }
 
 /* ==================== BREADCRUMB ==================== */
@@ -244,7 +244,7 @@
     transition: all 0.12s;
 }
 
-.newFolderBtn:hover { background-color: rgba(255, 255, 255, 0.06); color: var(--fg-primary); }
+.newFolderBtn:hover { background-color: var(--hover-bg-strong); color: var(--fg-primary); }
 
 .newFolderBar {
     display: flex;
@@ -320,7 +320,7 @@
     user-select: none;
 }
 
-.finderItem:hover { background-color: rgba(255, 255, 255, 0.04); }
+.finderItem:hover { background-color: var(--hover-bg); }
 
 .finderName {
     font-size: 0.8rem;
@@ -418,7 +418,7 @@
 }
 
 .fileLines { display: flex; flex-direction: column; gap: 4px; }
-.fileLine { display: block; height: 3px; background-color: rgba(255, 255, 255, 0.08); border-radius: 1px; }
+.fileLine { display: block; height: 3px; background-color: var(--hover-bg-strong); border-radius: 1px; }
 
 .filePreview { display: flex; flex-direction: column; gap: 2px; overflow: hidden; flex: 1; }
 
@@ -426,7 +426,7 @@
     display: block;
     font-size: 0.35rem;
     line-height: 1.4;
-    color: rgba(255, 255, 255, 0.35);
+    color: var(--fg-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -454,7 +454,7 @@
     font-size: 0.6rem;
     font-family: var(--font-mono);
     color: var(--fg-muted);
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--hover-bg);
     padding: 1px 4px;
     border-radius: 2px;
 }
@@ -463,7 +463,7 @@
     font-size: 0.65rem;
     font-family: var(--font-mono);
     color: var(--fg-muted);
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--hover-bg);
     padding: 1px 6px;
     border-radius: 3px;
     max-width: 120px;
@@ -504,7 +504,7 @@
     transition: all 0.12s;
 }
 
-.fileActionBtn:hover { background-color: rgba(255, 255, 255, 0.08); color: var(--fg-primary); }
+.fileActionBtn:hover { background-color: var(--hover-bg-strong); color: var(--fg-primary); }
 .fileActionDanger:hover { background-color: rgba(248, 81, 73, 0.12); color: #f85149; }
 
 /* Empty states */
@@ -603,7 +603,7 @@
     transition: all 0.12s;
 }
 
-.sidebarAction:hover { background-color: rgba(255, 255, 255, 0.06); color: var(--fg-primary); }
+.sidebarAction:hover { background-color: var(--hover-bg-strong); color: var(--fg-primary); }
 
 .newFolderInput {
     padding: 4px 8px;
@@ -624,7 +624,7 @@
     text-align: left;
 }
 
-.sidebarItem:hover { background-color: rgba(255, 255, 255, 0.04); color: var(--fg-primary); }
+.sidebarItem:hover { background-color: var(--hover-bg); color: var(--fg-primary); }
 
 .sidebarActive {
     background-color: rgba(56, 139, 253, 0.08) !important;
@@ -673,7 +673,7 @@
     white-space: nowrap;
 }
 
-.sidebarFile:hover { background-color: rgba(255, 255, 255, 0.04); color: var(--fg-secondary); }
+.sidebarFile:hover { background-color: var(--hover-bg); color: var(--fg-secondary); }
 .sidebarFileActive { background-color: rgba(56, 139, 253, 0.1) !important; color: var(--fg-primary) !important; }
 
 .sidebarDivider {
@@ -714,7 +714,7 @@
     transition: all 0.12s;
 }
 
-.explorerBack:hover { background-color: rgba(255, 255, 255, 0.06); color: var(--fg-primary); }
+.explorerBack:hover { background-color: var(--hover-bg-strong); color: var(--fg-primary); }
 
 .explorerTitle {
     font-size: 0.9rem;
@@ -747,7 +747,7 @@
     user-select: none;
 }
 
-.explorerRow:hover { background-color: rgba(255, 255, 255, 0.02); }
+.explorerRow:hover { background-color: var(--hover-bg); }
 .explorerRow:last-child { border-bottom: none; }
 
 .explorerRowSelected {
@@ -801,7 +801,7 @@
 .folderLabel {
     font-size: 0.7rem;
     color: var(--fg-muted);
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--hover-bg);
     padding: 1px 6px;
     border-radius: 3px;
     white-space: nowrap;
@@ -832,7 +832,7 @@
     transition: all 0.12s;
 }
 
-.rowAction:hover { background-color: rgba(255, 255, 255, 0.06); color: var(--fg-primary); }
+.rowAction:hover { background-color: var(--hover-bg-strong); color: var(--fg-primary); }
 .rowDanger:hover { background-color: rgba(248, 81, 73, 0.1); color: #f85149; }
 
 /* ==================== BULK BAR ==================== */
@@ -847,11 +847,11 @@
     left: 50%;
     transform: translateX(-50%);
     z-index: 100;
-    background-color: rgba(22, 27, 34, 0.92);
+    background-color: color-mix(in srgb, var(--bg-tertiary) 92%, transparent);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(56, 139, 253, 0.3);
     border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 24px var(--shadow-color);
 }
 
 .bulkCount {
@@ -876,7 +876,7 @@
     transition: all 0.12s;
 }
 
-.bulkBtn:hover { background-color: rgba(255, 255, 255, 0.06); color: var(--fg-primary); }
+.bulkBtn:hover { background-color: var(--hover-bg-strong); color: var(--fg-primary); }
 
 .bulkDanger { border-color: rgba(248, 81, 73, 0.3); color: #f85149; }
 .bulkDanger:hover { background-color: rgba(248, 81, 73, 0.12); }
@@ -894,7 +894,7 @@
     cursor: pointer;
 }
 
-.bulkBtnClear:hover { color: var(--fg-primary); background-color: rgba(255, 255, 255, 0.06); }
+.bulkBtnClear:hover { color: var(--fg-primary); background-color: var(--hover-bg-strong); }
 
 /* ==================== CONTEXT MENU ==================== */
 
@@ -906,7 +906,7 @@
     border-radius: 8px;
     padding: 4px;
     min-width: 180px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 24px var(--shadow-color);
 }
 
 .contextItem {
@@ -954,7 +954,7 @@
     position: fixed;
     inset: 0;
     z-index: 300;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -969,7 +969,7 @@
     max-width: 90vw;
     max-height: 70vh;
     overflow: hidden;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 16px 48px var(--overlay-bg);
 }
 
 .modalHeader {
@@ -992,7 +992,7 @@
     border-radius: 4px;
     transition: all 0.1s;
 }
-.modalClose:hover { color: var(--fg-primary); background-color: rgba(255, 255, 255, 0.06); }
+.modalClose:hover { color: var(--fg-primary); background-color: var(--hover-bg-strong); }
 
 .modalBody {
     padding: 1rem 1.25rem;
