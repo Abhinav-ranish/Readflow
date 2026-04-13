@@ -44,6 +44,13 @@ export interface ReadmeVersion {
     createdAt: number;
 }
 
+export interface TeamEntry {
+    id: string;
+    name: string;
+    ownerId: string;
+    createdAt: number;
+}
+
 interface DBAdapter {
     saveReadme(content: string, ip?: string, title?: string, opts?: { password?: string; expiresIn?: number; userId?: string; slug?: string }): Promise<string>;
     getReadme(id: string): Promise<ReadmeEntry | null>;
@@ -86,6 +93,18 @@ interface DBAdapter {
     getUserByApiKey(apiKey: string): Promise<UserEntry | null>;
     // Account
     deleteAccountAndDocs(userId: string): Promise<boolean>;
+    // Teams
+    createTeam(name: string, ownerId: string): Promise<string>;
+    getTeamsByUser(userId: string): Promise<{ id: string; name: string; ownerId: string; role: string; memberCount: number; createdAt: number }[]>;
+    getTeamMembers(teamId: string): Promise<{ userId: string; role: string; name?: string; email?: string; image?: string; joinedAt: number }[]>;
+    addTeamMember(teamId: string, userId: string, role?: string): Promise<boolean>;
+    removeTeamMember(teamId: string, userId: string): Promise<boolean>;
+    getTeamDocs(teamId: string): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; slug?: string; folder?: string; preview?: string }[]>;
+    setDocTeam(docId: string, teamId: string | null, userId: string): Promise<boolean>;
+    getTeam(teamId: string): Promise<{ id: string; name: string; ownerId: string; createdAt: number } | null>;
+    // Presence
+    setPresence(docId: string, userId: string, userName: string, userImage?: string): Promise<void>;
+    getPresence(docId: string): Promise<{ userId: string; name: string; image?: string; lastSeen: number }[]>;
     // Admin stats
     getAdminStats(): Promise<{
         totalUsers: number;
@@ -121,7 +140,7 @@ function ensureDataDir() {
         fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     if (!fs.existsSync(DATA_FILE)) {
-        fs.writeFileSync(DATA_FILE, JSON.stringify({ readmes: {}, users: {}, comments: {}, versions: {}, views: {} }));
+        fs.writeFileSync(DATA_FILE, JSON.stringify({ readmes: {}, users: {}, comments: {}, versions: {}, views: {}, teams: {}, teamMembers: {}, presence: {} }));
     }
 }
 
@@ -132,8 +151,9 @@ function readStore(): Record<string, any> {
         const store = JSON.parse(data);
         // Migrate old flat format
         if (!store.readmes) {
-            return { readmes: store, users: {}, comments: {}, versions: {}, views: {} };
+            return { readmes: store, users: {}, comments: {}, versions: {}, views: {}, teams: {}, teamMembers: {}, presence: {} };
         }
+        if (!store.teams) { store.teams = {}; store.teamMembers = {}; store.presence = {}; }
         return store;
     } catch {
         return { readmes: {}, users: {}, comments: {}, versions: {}, views: {} };
@@ -742,6 +762,92 @@ const localAdapter: DBAdapter = {
         // Memory store fallback
         return { totalUsers: 0, totalDocs: 0, totalViews: 0, userGrowth: [], docGrowth: [], viewsPerDay: [], topDocs: [] };
     },
+
+    // --- Teams (local) ---
+    async createTeam(name, ownerId) {
+        const id = nanoid(10);
+        const store = readStore();
+        store.teams[id] = { name, ownerId, createdAt: Date.now() };
+        if (!store.teamMembers[id]) store.teamMembers[id] = {};
+        store.teamMembers[id][ownerId] = { role: 'owner', joinedAt: Date.now() };
+        writeStore(store);
+        return id;
+    },
+    async getTeam(teamId) {
+        const store = readStore();
+        const t = store.teams?.[teamId];
+        if (!t) return null;
+        return { id: teamId, name: t.name, ownerId: t.ownerId, createdAt: t.createdAt };
+    },
+    async getTeamsByUser(userId) {
+        const store = readStore();
+        const results: any[] = [];
+        for (const [teamId, members] of Object.entries(store.teamMembers || {}) as [string, any][]) {
+            if (members[userId]) {
+                const t = store.teams[teamId];
+                if (t) {
+                    results.push({ id: teamId, name: t.name, ownerId: t.ownerId, role: members[userId].role, memberCount: Object.keys(members).length, createdAt: t.createdAt });
+                }
+            }
+        }
+        return results;
+    },
+    async getTeamMembers(teamId) {
+        const store = readStore();
+        const members = store.teamMembers?.[teamId] || {};
+        return Object.entries(members).map(([userId, m]: [string, any]) => {
+            const user = store.users?.[userId];
+            return { userId, role: m.role, name: user?.name, email: user?.email, image: user?.image, joinedAt: m.joinedAt };
+        });
+    },
+    async addTeamMember(teamId, userId, role = 'member') {
+        const store = readStore();
+        if (!store.teams[teamId]) return false;
+        if (!store.teamMembers[teamId]) store.teamMembers[teamId] = {};
+        store.teamMembers[teamId][userId] = { role, joinedAt: Date.now() };
+        writeStore(store);
+        return true;
+    },
+    async removeTeamMember(teamId, userId) {
+        const store = readStore();
+        if (!store.teamMembers?.[teamId]?.[userId]) return false;
+        delete store.teamMembers[teamId][userId];
+        writeStore(store);
+        return true;
+    },
+    async getTeamDocs(teamId) {
+        const store = readStore();
+        return Object.entries(store.readmes || {})
+            .filter(([, r]: [string, any]) => r.teamId === teamId)
+            .map(([id, r]: [string, any]) => ({
+                id, title: r.title, createdAt: r.createdAt, hasPassword: !!r.passwordHash, slug: r.slug, folder: r.folder,
+                preview: (r.content || '').slice(0, 200),
+            }));
+    },
+    async setDocTeam(docId, teamId, userId) {
+        const store = readStore();
+        const entry = store.readmes[docId];
+        if (!entry || entry.userId !== userId) return false;
+        entry.teamId = teamId;
+        writeStore(store);
+        return true;
+    },
+
+    // --- Presence (local) ---
+    async setPresence(docId, userId, userName, userImage) {
+        const store = readStore();
+        if (!store.presence[docId]) store.presence[docId] = {};
+        store.presence[docId][userId] = { name: userName, image: userImage, lastSeen: Date.now() };
+        writeStore(store);
+    },
+    async getPresence(docId) {
+        const store = readStore();
+        const entries = store.presence?.[docId] || {};
+        const cutoff = Date.now() - 60000; // 60 second window
+        return Object.entries(entries)
+            .filter(([, p]: [string, any]) => p.lastSeen > cutoff)
+            .map(([userId, p]: [string, any]) => ({ userId, name: p.name, image: p.image, lastSeen: p.lastSeen }));
+    },
 };
 
 // --- 2. Cloudflare D1 Adapter (Production via REST) ---
@@ -793,6 +899,12 @@ async function ensureD1Tables() {
     await safeAlter(`ALTER TABLE users ADD COLUMN stripe_customer_id TEXT`);
     await safeAlter(`ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT`);
     await safeAlter(`ALTER TABLE users ADD COLUMN ai_credits_used INTEGER DEFAULT 0`);
+    // Teams
+    await queryD1(`CREATE TABLE IF NOT EXISTS teams (id TEXT PRIMARY KEY, name TEXT NOT NULL, owner_id TEXT NOT NULL, created_at INTEGER)`);
+    await queryD1(`CREATE TABLE IF NOT EXISTS team_members (team_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT DEFAULT 'member', joined_at INTEGER, PRIMARY KEY (team_id, user_id))`);
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN team_id TEXT`);
+    // Presence
+    await queryD1(`CREATE TABLE IF NOT EXISTS presence (doc_id TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT, user_image TEXT, last_seen INTEGER, PRIMARY KEY (doc_id, user_id))`);
 }
 
 // Track init
@@ -1172,6 +1284,76 @@ const cloudflareAdapter: DBAdapter = {
             viewsPerDay: viewsPerDayR.map((r: any) => ({ date: r.date, count: r.count })),
             topDocs: topDocsR.map((r: any) => ({ id: r.id, title: r.title, views: r.views })),
         };
+    },
+
+    // --- Teams (D1) ---
+    async createTeam(name, ownerId) {
+        await initD1();
+        const id = nanoid(10);
+        await queryD1(`INSERT INTO teams (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)`, [id, name, ownerId, Date.now()]);
+        await queryD1(`INSERT INTO team_members (team_id, user_id, role, joined_at) VALUES (?, ?, 'owner', ?)`, [id, ownerId, Date.now()]);
+        return id;
+    },
+    async getTeam(teamId) {
+        await initD1();
+        const results = await queryD1(`SELECT * FROM teams WHERE id = ? LIMIT 1`, [teamId]);
+        if (results.length === 0) return null;
+        const t = results[0];
+        return { id: t.id, name: t.name, ownerId: t.owner_id, createdAt: t.created_at };
+    },
+    async getTeamsByUser(userId) {
+        await initD1();
+        const results = await queryD1(
+            `SELECT t.id, t.name, t.owner_id, t.created_at, tm.role, (SELECT count(*) FROM team_members WHERE team_id = t.id) as member_count
+             FROM teams t JOIN team_members tm ON t.id = tm.team_id WHERE tm.user_id = ?`, [userId]);
+        return results.map((r: any) => ({ id: r.id, name: r.name, ownerId: r.owner_id, role: r.role, memberCount: r.member_count, createdAt: r.created_at }));
+    },
+    async getTeamMembers(teamId) {
+        await initD1();
+        const results = await queryD1(
+            `SELECT tm.user_id, tm.role, tm.joined_at, u.name, u.email, u.image
+             FROM team_members tm LEFT JOIN users u ON tm.user_id = u.id WHERE tm.team_id = ?`, [teamId]);
+        return results.map((r: any) => ({ userId: r.user_id, role: r.role, name: r.name, email: r.email, image: r.image, joinedAt: r.joined_at }));
+    },
+    async addTeamMember(teamId, userId, role = 'member') {
+        await initD1();
+        try {
+            await queryD1(`INSERT INTO team_members (team_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)`, [teamId, userId, role, Date.now()]);
+            return true;
+        } catch { return false; }
+    },
+    async removeTeamMember(teamId, userId) {
+        await initD1();
+        await queryD1(`DELETE FROM team_members WHERE team_id = ? AND user_id = ?`, [teamId, userId]);
+        return true;
+    },
+    async getTeamDocs(teamId) {
+        await initD1();
+        const results = await queryD1(
+            `SELECT id, title, created_at, password_hash, slug, folder, substr(content, 1, 200) as preview FROM readmes WHERE team_id = ? ORDER BY created_at DESC`, [teamId]);
+        return results.map((r: any) => ({ id: r.id, title: r.title, createdAt: r.created_at, hasPassword: !!r.password_hash, slug: r.slug, folder: r.folder, preview: r.preview }));
+    },
+    async setDocTeam(docId, teamId, userId) {
+        await initD1();
+        const results = await queryD1(`SELECT user_id FROM readmes WHERE id = ? LIMIT 1`, [docId]);
+        if (results.length === 0 || results[0].user_id !== userId) return false;
+        await queryD1(`UPDATE readmes SET team_id = ? WHERE id = ?`, [teamId, docId]);
+        return true;
+    },
+
+    // --- Presence (D1) ---
+    async setPresence(docId, userId, userName, userImage) {
+        await initD1();
+        await queryD1(
+            `INSERT INTO presence (doc_id, user_id, user_name, user_image, last_seen) VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(doc_id, user_id) DO UPDATE SET user_name = excluded.user_name, user_image = excluded.user_image, last_seen = excluded.last_seen`,
+            [docId, userId, userName, userImage || null, Date.now()]);
+    },
+    async getPresence(docId) {
+        await initD1();
+        const cutoff = Date.now() - 60000;
+        const results = await queryD1(`SELECT user_id, user_name, user_image, last_seen FROM presence WHERE doc_id = ? AND last_seen > ?`, [docId, cutoff]);
+        return results.map((r: any) => ({ userId: r.user_id, name: r.user_name, image: r.user_image, lastSeen: r.last_seen }));
     },
 };
 
