@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
     FileText, Trash2, ExternalLink, Lock, Clock, Pencil, BarChart3, History,
-    Plus, Pin, PinOff, FolderOpen, FolderPlus, Crown, Settings,
+    Plus, Pin, PinOff, FolderOpen, FolderPlus, Crown, Settings, Users,
     Upload, Grid3X3, List, ChevronRight, ChevronDown, MoreHorizontal, X,
     ArrowLeft
 } from 'lucide-react';
 import LoadingScreen from '@/components/LoadingScreen';
+import ThemeToggle from '@/components/ThemeToggle';
 import styles from './page.module.css';
 
 interface DocEntry {
@@ -357,6 +358,10 @@ function DashboardContent() {
                     {plan === 'pro' && <span className={styles.proBadge}><Crown size={11} /> Pro</span>}
                 </div>
                 <div className={styles.headerRight}>
+                    <ThemeToggle />
+                    <Link href="/teams" className={styles.settingsBtn} title="Teams">
+                        <Users size={14} />
+                    </Link>
                     <div className={styles.viewToggle}>
                         <button className={`${styles.viewBtn} ${viewMode === 'finder' ? styles.viewActive : ''}`} onClick={() => setView('finder')} title="Finder view">
                             <Grid3X3 size={14} />
@@ -598,6 +603,7 @@ function DashboardContent() {
                                 onDragStart={handleDocDragStart}
                                 onDragEnd={handleDocDragEnd}
                                 onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, docId: doc.id }); }}
+                                onOpen={(id) => window.open(`/s/${id}`, '_blank')}
                             />
                         ))}
 
@@ -743,7 +749,7 @@ function DashboardContent() {
     );
 }
 
-function DocFileItem({ doc, selected, onSelect, onDelete, onPin, onDragStart, onDragEnd, onContextMenu }: {
+function DocFileItem({ doc, selected, onSelect, onDelete, onPin, onDragStart, onDragEnd, onContextMenu, onOpen }: {
     doc: DocEntry;
     selected: boolean;
     onSelect: (id: string, e: React.MouseEvent) => void;
@@ -752,6 +758,7 @@ function DocFileItem({ doc, selected, onSelect, onDelete, onPin, onDragStart, on
     onDragStart: (e: React.DragEvent, id: string) => void;
     onDragEnd?: () => void;
     onContextMenu: (e: React.MouseEvent, docId: string) => void;
+    onOpen: (id: string) => void;
 }) {
     const previewLines = (doc.preview || '').replace(/[#*`>\-\[\]()!]/g, '').split('\n').filter(l => l.trim()).slice(0, 6);
 
@@ -763,6 +770,7 @@ function DocFileItem({ doc, selected, onSelect, onDelete, onPin, onDragStart, on
             onDragStart={e => onDragStart(e, doc.id)}
             onDragEnd={onDragEnd}
             onClick={e => { e.stopPropagation(); onSelect(doc.id, e); }}
+            onDoubleClick={() => onOpen(doc.id)}
             onContextMenu={e => { e.preventDefault(); onContextMenu(e, doc.id); }}
         >
             <div className={styles.fileThumb}>
