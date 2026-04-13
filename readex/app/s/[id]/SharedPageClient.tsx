@@ -6,6 +6,8 @@ import DownloadMenu from '@/components/DownloadMenu';
 import PoweredByFooter from '@/components/PoweredByFooter';
 import CommentSection from '@/components/CommentSection';
 import PasswordGate from '@/components/PasswordGate';
+import PresenceIndicator from '@/components/PresenceIndicator';
+import ThemeToggle from '@/components/ThemeToggle';
 import { Lock, Clock, Pencil, History } from 'lucide-react';
 import Link from 'next/link';
 import styles from './page.module.css';
@@ -80,6 +82,8 @@ export default function SharedPageClient({ docId, content, title, createdAt, isP
                     )}
                 </div>
                 <div className={styles.actions}>
+                    <ThemeToggle />
+                    <PresenceIndicator docId={docId} />
                     {isOwner && (
                         <>
                             <Link href={`/s/${docId}/edit`} className={styles.createLink} title="Edit">

@@ -3,6 +3,7 @@ import React from 'react';
 import { Share2, Link2 } from 'lucide-react';
 import Link from 'next/link';
 import UserMenu from '@/components/UserMenu';
+import ThemeToggle from '@/components/ThemeToggle';
 import styles from './TopBar.module.css';
 
 interface TopBarProps {
@@ -25,6 +26,7 @@ export default function TopBar({ onShare, isSharing, error, lastShareUrl, onShow
             <div className={styles.actions}>
                 {layoutToggle}
                 {templateSelector}
+                <ThemeToggle />
                 {error && <span className={styles.errorToast}>{error}</span>}
                 {lastShareUrl && onShowLastLink && (
                     <button
