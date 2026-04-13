@@ -438,6 +438,17 @@
     white-space: nowrap;
 }
 
+.sectionDivider svg {
+    color: var(--fg-muted);
+    flex-shrink: 0;
+}
+
+.sectionCount {
+    font-size: 0.7rem;
+    color: var(--fg-muted);
+    opacity: 0.7;
+}
+
 .sectionDivider::after {
     content: '';
     flex: 1;

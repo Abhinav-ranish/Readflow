@@ -28,7 +28,7 @@ interface Doc {
     preview?: string;
 }
 
-function DocFileItem({ doc, selected, editingDoc, editTitle, editSlug, setEditTitle, setEditSlug, setEditingDoc, onSelect, handleSaveDoc, handleDeleteDoc, handleDragStart, handleDragEnd }: {
+function DocFileItem({ doc, selected, editingDoc, editTitle, editSlug, setEditTitle, setEditSlug, setEditingDoc, onSelect, handleSaveDoc, handleDeleteDoc, handleDragStart, handleDragEnd, onRemoveFromUser }: {
     doc: Doc;
     selected: boolean;
     editingDoc: string | null;
@@ -42,6 +42,7 @@ function DocFileItem({ doc, selected, editingDoc, editTitle, editSlug, setEditTi
     handleDeleteDoc: (id: string) => void;
     handleDragStart: (e: React.DragEvent, id: string) => void;
     handleDragEnd: () => void;
+    onRemoveFromUser?: (id: string) => void;
 }) {
     const previewLines = (doc.preview || '').replace(/[#*`>\-\[\]()!]/g, '').split('\n').filter(l => l.trim()).slice(0, 6);
 
@@ -95,6 +96,8 @@ function DocFileItem({ doc, selected, editingDoc, editTitle, editSlug, setEditTi
                 <a href={`/s/${doc.id}/edit`} target="_blank" rel="noopener noreferrer" className={styles.fileActionBtn} title="Edit content"><Pencil size={13} /></a>
                 <button className={styles.fileActionBtn} title="Rename"
                     onClick={() => { setEditingDoc(doc.id); setEditTitle(doc.title || ''); setEditSlug(doc.slug || ''); }}><FileText size={13} /></button>
+                {onRemoveFromUser && <button className={styles.fileActionBtn} title="Remove from user"
+                    onClick={() => onRemoveFromUser(doc.id)}><X size={13} /></button>}
                 <button className={`${styles.fileActionBtn} ${styles.fileActionDanger}`} title="Delete"
                     onClick={() => handleDeleteDoc(doc.id)}><Trash2 size={13} /></button>
             </div>
@@ -189,6 +192,25 @@ export default function AdminPage() {
         const res = await fetch('/api/admin/docs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, title: editTitle, slug: slug || null }) });
         if (res.ok) { setDocs(prev => prev.map(d => d.id === id ? { ...d, title: editTitle, slug: slug || undefined } : d)); setEditingDoc(null); }
         else { const data = await res.json().catch(() => ({})); showError(data.error || 'Failed to update'); }
+    };
+
+    const handleRemoveFromUser = async (docId: string) => {
+        const res = await fetch('/api/admin/docs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: docId, userId: null }) });
+        if (res.ok) setDocs(prev => prev.map(d => d.id === docId ? { ...d, userId: undefined } : d));
+        else showError('Failed to remove doc from user');
+    };
+
+    const handleBulkRemoveFromUser = async () => {
+        if (selected.size === 0) return;
+        if (!confirm(`Remove ${selected.size} document${selected.size > 1 ? 's' : ''} from this user?`)) return;
+        const ids = [...selected];
+        const results = await Promise.allSettled(ids.map(id =>
+            fetch('/api/admin/docs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, userId: null }) })
+        ));
+        const removed = ids.filter((_, i) => results[i].status === 'fulfilled' && (results[i] as PromiseFulfilledResult<Response>).value.ok);
+        if (removed.length > 0) setDocs(prev => prev.map(d => removed.includes(d.id) ? { ...d, userId: undefined } : d));
+        setSelected(new Set());
+        if (removed.length < ids.length) showError(`Failed to remove ${ids.length - removed.length} document(s)`);
     };
 
     // Bulk actions
@@ -377,6 +399,7 @@ export default function AdminPage() {
                 <div className={styles.bulkBar}>
                     <span className={styles.bulkCount}>{selected.size} selected</span>
                     <button className={styles.bulkBtn} onClick={handleBulkRename}><Pencil size={13} /> Rename</button>
+                    {activeUser && <button className={styles.bulkBtn} onClick={handleBulkRemoveFromUser}><X size={13} /> Remove from user</button>}
                     <button className={`${styles.bulkBtn} ${styles.bulkDanger}`} onClick={handleBulkDelete}><Trash2 size={13} /> Delete</button>
                     <button className={styles.bulkBtnClear} onClick={() => setSelected(new Set())}><X size={13} /></button>
                 </div>
@@ -479,16 +502,35 @@ export default function AdminPage() {
                         </>
                     )}
                 </div>
-            ) : (
-                <div className={styles.finderGrid} ref={gridRef} onMouseDown={handleMarqueeStart}>
-                    {docs.filter(d => d.userId === activeUser).map(doc => (
-                        <DocFileItem key={doc.id} doc={doc} selected={selected.has(doc.id)} {...docItemProps} />
-                    ))}
-                    {docs.filter(d => d.userId === activeUser).length === 0 && (
-                        <div className={styles.emptyFolder}><FileText size={32} strokeWidth={1} /><p>No documents</p></div>
-                    )}
-                </div>
-            )}
+            ) : (() => {
+                const userDocs = docs.filter(d => d.userId === activeUser);
+                const userFolders = [...new Set(userDocs.filter(d => d.folder).map(d => d.folder!))].sort();
+                const unfiled = userDocs.filter(d => !d.folder);
+                return (
+                    <div className={styles.finderGrid} ref={gridRef} onMouseDown={handleMarqueeStart}>
+                        {userFolders.map(f => {
+                            const folderDocs = userDocs.filter(d => d.folder === f);
+                            return (
+                                <React.Fragment key={`folder-${f}`}>
+                                    <div className={styles.sectionDivider}><FolderOpen size={13} /><span>{f}</span><span className={styles.sectionCount}>{folderDocs.length}</span></div>
+                                    {folderDocs.map(doc => (
+                                        <DocFileItem key={doc.id} doc={doc} selected={selected.has(doc.id)} {...docItemProps} onRemoveFromUser={handleRemoveFromUser} />
+                                    ))}
+                                </React.Fragment>
+                            );
+                        })}
+                        {userFolders.length > 0 && unfiled.length > 0 && (
+                            <div className={styles.sectionDivider}><span>Unfiled</span></div>
+                        )}
+                        {unfiled.map(doc => (
+                            <DocFileItem key={doc.id} doc={doc} selected={selected.has(doc.id)} {...docItemProps} onRemoveFromUser={handleRemoveFromUser} />
+                        ))}
+                        {userDocs.length === 0 && (
+                            <div className={styles.emptyFolder}><FileText size={32} strokeWidth={1} /><p>No documents</p></div>
+                        )}
+                    </div>
+                );
+            })()}
 
             {/* Marquee rectangle */}
             {marquee && (

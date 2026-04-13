@@ -23,7 +23,7 @@
 }
 
 .backLink {
-    color: var(--accent);
+    color: var(--accent-primary);
     text-decoration: none;
     font-size: 0.9rem;
 }
@@ -44,6 +44,12 @@
 }
 
 .headerLeft {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.headerRight {
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -83,148 +89,250 @@
     border: 1px solid var(--border-subtle);
 }
 
+/* Period toggle */
+
+.periodToggle {
+    display: flex;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+}
+
+.periodBtn {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--fg-secondary);
+    border-radius: 6px;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.periodBtn:hover {
+    color: var(--fg-primary);
+}
+
+.periodActive {
+    background: var(--accent-dim);
+    color: #fff;
+}
+
+.periodActive:hover {
+    color: #fff;
+}
+
 /* Summary cards */
 
 .cards {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0.75rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 
 .card {
     background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    padding: 1.25rem 1rem;
+    border-radius: 12px;
+    padding: 1.1rem 1.15rem;
     display: flex;
     flex-direction: column;
+    gap: 0.4rem;
+    transition: border-color 0.15s;
+}
+
+.card:hover {
+    border-color: var(--border-active);
+}
+
+.cardTop {
+    display: flex;
     align-items: center;
-    gap: 0.35rem;
-}
-
-.cardIcon {
-    color: var(--accent, #388bfd);
-    margin-bottom: 0.25rem;
-}
-
-.cardValue {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: var(--fg-primary);
+    justify-content: space-between;
 }
 
 .cardLabel {
     font-size: 0.78rem;
     color: var(--fg-secondary);
+    font-weight: 500;
 }
 
-/* Sections */
-
-.section {
-    margin-bottom: 2rem;
+.cardIconWrap {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.sectionTitle {
+.cardIconBlue {
+    background: rgba(88, 166, 255, 0.12);
+    color: #58a6ff;
+}
+
+.cardIconGreen {
+    background: rgba(63, 185, 80, 0.12);
+    color: #3fb950;
+}
+
+.cardIconPurple {
+    background: rgba(210, 168, 255, 0.12);
+    color: #d2a8ff;
+}
+
+.cardIconAmber {
+    background: rgba(210, 153, 34, 0.15);
+    color: #d29922;
+}
+
+.cardValue {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--fg-primary);
+    line-height: 1.1;
+}
+
+.cardTrend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--fg-muted);
+}
+
+.trendUp {
+    color: #3fb950;
+}
+
+.trendDown {
+    color: #f85149;
+}
+
+.trendFlip {
+    transform: rotate(180deg);
+}
+
+/* Charts */
+
+.chartsRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.chartCard {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1.15rem;
+}
+
+.chartCardFull {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1.15rem;
+    margin-bottom: 1.5rem;
+}
+
+.chartTitle {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.92rem;
+    font-size: 0.88rem;
     font-weight: 600;
     margin: 0 0 0.75rem;
     color: var(--fg-primary);
 }
 
+.chartWrap {
+    width: 100%;
+    overflow: hidden;
+}
+
+.chartSvg {
+    width: 100%;
+    height: auto;
+    min-height: 160px;
+}
+
+.axisLabel {
+    font-size: 9px;
+    fill: var(--fg-muted);
+    font-family: var(--font-sans);
+}
+
+.dot {
+    transition: opacity 0.15s;
+}
+
+.dotHitArea {
+    cursor: crosshair;
+}
+
+.dotHitArea:hover + .dot,
+.dotHitArea:hover ~ .dot {
+    opacity: 1;
+}
+
+/* Make dots visible on SVG hover */
+.chartSvg:hover .dot {
+    opacity: 0.6;
+}
+.chartSvg .dotHitArea:hover ~ .dot,
+.chartSvg g:hover .dot {
+    opacity: 1;
+}
+
 .noData {
     text-align: center;
-    padding: 2rem;
+    padding: 2.5rem;
     color: var(--fg-secondary);
     font-size: 0.85rem;
 }
 
-/* Chart */
-
-.chart {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    height: 160px;
-    padding: 0.75rem 0;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    padding: 1rem 0.5rem 2rem;
-    overflow-x: auto;
-}
-
-.bar {
-    flex: 1;
-    min-width: 18px;
-    max-width: 40px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    height: 100%;
-    justify-content: flex-end;
-    position: relative;
-}
-
-.barFill {
-    width: 100%;
-    min-height: 2px;
-    background: rgba(56, 139, 253, 0.7);
-    border-radius: 3px 3px 0 0;
-    transition: height 0.3s ease;
-}
-
-.barUsers .barFill {
-    background: rgba(139, 92, 246, 0.7);
-}
-
-.barDocs .barFill {
-    background: rgba(63, 185, 80, 0.7);
-}
-
-.barLabel {
-    position: absolute;
-    bottom: -18px;
-    font-size: 0.58rem;
-    color: var(--fg-secondary);
-    white-space: nowrap;
-    transform: rotate(-35deg);
-    transform-origin: top center;
-}
-
 /* Table */
+
+.tableSection {
+    margin-bottom: 2rem;
+}
 
 .table {
     background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
 }
 
 .tableHeader {
     display: flex;
-    justify-content: space-between;
-    padding: 0.65rem 1rem;
-    font-size: 0.75rem;
+    align-items: center;
+    padding: 0.65rem 1.15rem;
+    font-size: 0.72rem;
     font-weight: 600;
-    color: var(--fg-secondary);
+    color: var(--fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     border-bottom: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.015);
 }
+
+.thRank { width: 36px; flex-shrink: 0; }
+.thTitle { flex: 1; }
+.thViews { width: 80px; flex-shrink: 0; text-align: right; }
 
 .tableRow {
     display: flex;
     align-items: center;
-    padding: 0.6rem 1rem;
+    padding: 0.7rem 1.15rem;
     border-bottom: 1px solid var(--border-subtle);
     text-decoration: none;
     color: var(--fg-primary);
     transition: background 0.12s;
-    gap: 0.5rem;
 }
 
 .tableRow:last-child {
@@ -232,18 +340,18 @@
 }
 
 .tableRow:hover {
-    background: var(--bg-tertiary);
+    background: rgba(56, 139, 253, 0.04);
 }
 
-.tableRank {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--fg-secondary);
-    width: 28px;
+.tdRank {
+    width: 36px;
     flex-shrink: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--fg-muted);
 }
 
-.tableTitle {
+.tdTitle {
     flex: 1;
     font-size: 0.85rem;
     overflow: hidden;
@@ -251,27 +359,61 @@
     white-space: nowrap;
 }
 
-.tableCount {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--accent, #388bfd);
+.tdViews {
+    width: 80px;
     flex-shrink: 0;
+    text-align: right;
+}
+
+.viewsBadge {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+    background: rgba(88, 166, 255, 0.1);
+    padding: 0.15rem 0.55rem;
+    border-radius: 10px;
 }
 
 /* Responsive */
+
+@media (max-width: 900px) {
+    .chartsRow {
+        grid-template-columns: 1fr;
+    }
+}
 
 @media (max-width: 768px) {
     .cards {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    .header {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .headerRight {
+        width: 100%;
+        justify-content: flex-end;
+    }
 }
 
 @media (max-width: 480px) {
     .cards {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
     }
 
-    .chart {
-        height: 120px;
+    .card {
+        padding: 0.85rem;
+    }
+
+    .cardValue {
+        font-size: 1.3rem;
+    }
+
+    .periodToggle {
+        flex-wrap: wrap;
     }
 }
