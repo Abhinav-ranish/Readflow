@@ -33,7 +33,7 @@ Most doc tools weren't built for the way modern teams work — with agents writi
 ### Markdown Rendering
 - **GitHub Flavored Markdown** — tables, task lists, strikethrough
 - **Math equations** — KaTeX support out of the box
-- **Mermaid diagrams** — interactive with pan and zoom
+- **Mermaid diagrams** — interactive with pan and zoom controls
 - **Code blocks** — syntax-highlighted with the GitHub dark theme
 - **Raw HTML** — sanitized and rendered safely
 - **Collapsible sections**, SVG support, and more
@@ -43,14 +43,17 @@ Most doc tools weren't built for the way modern teams work — with agents writi
 - **Password protection** — SHA-256 hashed, salted
 - **Expiring links** — 60 seconds to 30 days
 - **Custom vanity URLs** — `/p/your-slug`
-- **Embeddable** — drop docs into any page
+- **Embeddable** — drop docs into any page via `/s/{id}/embed`
 - **Fork button** — let readers create their own copy
 - **Comments** — anonymous or authenticated
 
 ### Document Management
-- **Dashboard** — all your docs in one place
-- **Folders and pins** — organize and prioritize
-- **Bulk operations** — delete and organize at scale
+- **Dashboard** — Finder (grid) and Explorer (list) views
+- **Project folders** — organize docs into named projects
+- **Rename and move** — right-click context menu with folder picker modal
+- **Drag-and-drop** — move docs between folders, upload `.md` files by dropping
+- **Bulk operations** — multi-select with Cmd+click, marquee selection, bulk move/delete
+- **Pins** — pin important docs to the top
 - **Version history** — full edit timeline with one-click restore
 - **Edit page** — update live docs without re-sharing
 
@@ -63,36 +66,68 @@ Most doc tools weren't built for the way modern teams work — with agents writi
 - **Translate** to any language
 - **Chat mode** — ask questions about your document
 - **Multi-provider** — OpenAI, Anthropic Claude, Google Gemini
+- **Rate-limited** — 3 requests/minute per user
 
 ### Analytics
-- **Per-document view tracking**
-- **Unique visitor counts**
-- **Trend graphs** — views over time
-- **Referrer tracking**
+- **Per-document view tracking** with unique visitor counts
+- **Trend graphs** — SVG area charts with smooth curves
+- **Referrer tracking** — see where traffic comes from
+- **Admin analytics** — platform-wide stats with period selector (7d/14d/30d), trend indicators, and top documents table
 
-### CLI Tool
+### CLI Tool (`readflow-md`)
 ```bash
-npx readflow share README.md
+npm i -g readflow-md
 ```
-- **Share from terminal** — pipe any `.md` file to a live URL
+- **Share from terminal** — `npx readflow share README.md`
+- **Fetch documents** — `npx readflow fetch` with interactive search and folder browsing
 - **Authenticate via browser** — OAuth flow, no tokens to copy-paste
-- **Password & expiry flags** — `--password secret --expiry 7d`
-- **Update existing docs** — `--update` flag for upserts
+- **Password & expiry flags** — `--password secret --expires 7d`
+- **Update existing docs** — `--update` flag for upserts by slug
 - **API key auth** — `rf_` prefixed tokens for headless/agent use
-- **Project skill install** — `readflow install` scaffolds agent guidelines
-- **Auto-discovery** — finds Markdown files in your project tree
+- **Project install** — `readflow install` with interactive file picker for auto-upload tracking
+- **Auto-discovery** — finds all `.md` files in your project tree
+- **Git hook** — auto-sync tracked files on commit
+
+#### CLI Commands
+
+```bash
+readflow share <file>           # Share a markdown file
+readflow fetch                  # Browse your docs (interactive picker)
+readflow fetch "search term"    # Search by title/folder
+readflow fetch <id> -o file.md  # Download by ID
+readflow fetch --list           # List all docs grouped by folder
+readflow login                  # Authenticate via browser
+readflow install                # Set up project tracking & hooks
+readflow config --show          # Show current config
+```
+
+### Raw Content API
+```bash
+# Download raw markdown
+curl https://readflow.aranish.uk/api/share/{id}/raw
+
+# Download as JSON with metadata
+curl https://readflow.aranish.uk/api/share/{id}/raw?format=json
+
+# Password-protected docs
+curl https://readflow.aranish.uk/api/share/{id}/raw?password=secret
+```
 
 ### API & Agentic Integration
 - **RESTful API** — create, read, update, delete documents programmatically
-- **Bearer token auth** — generate `rf_` API keys for agents and pipelines
+- **Bearer token auth** — generate `rf_` API keys from Settings
+- **Token-authenticated doc listing** — `GET /api/user/docs/list` with `?q=` search
 - **Rate-limited endpoints** — safe for automated workflows
 - **Webhook-ready architecture** — plug into CI/CD, chatbots, or agent loops
 - **One command to publish** — your agent writes the doc, Readflow hosts it
 
 ### Admin Panel
-- **User management** — view, search, delete users
-- **Document moderation** — edit titles, manage slugs, remove content
-- **Role-based access** — admin-gated routes
+- **User management** — view, search, delete users, toggle plans
+- **Document moderation** — edit titles, manage slugs, reassign or remove docs from users
+- **Folder visibility** — see user project folders in admin view
+- **Drag-and-drop reassignment** — move docs between users
+- **Platform analytics** — area charts, trend cards, period filtering, top docs ranking
+- **Role-based access** — admin-gated routes via `ADMIN_EMAILS` env var
 
 ### Billing & Plans
 - **Free tier** — sharing, analytics, custom slugs, passwords, expiry
@@ -112,12 +147,13 @@ npx readflow share README.md
 | Layer | Technology |
 |-------|-----------|
 | Framework | Next.js 15 (App Router), React 19 |
-| Styling | Vanilla CSS Modules, CSS Variables, Glassmorphism |
+| Styling | CSS Modules, CSS Variables |
 | Editor | CodeMirror (`@uiw/react-codemirror`) |
 | Database | Cloudflare D1 (REST Adapter) + local file fallback |
 | Auth | NextAuth v5 (Google + GitHub OAuth) |
 | AI | OpenAI, Anthropic, Google Generative AI |
 | Payments | Stripe |
+| CLI | Zero-dependency Node.js (`readflow-md` on npm) |
 | Fonts | Abril Fatface + Geist Sans/Mono |
 | Deployment | Vercel |
 
@@ -137,17 +173,20 @@ No database setup required — local file-based storage works out of the box.
 ## Agentic Quick Start
 
 ```bash
-# Install the CLI globally
-npm i -g readflow
+# Install the CLI
+npm i -g readflow-md
 
 # Authenticate (opens browser)
 readflow login
 
 # Share a doc from your agent or pipeline
-readflow share ./docs/changelog.md --expiry 7d
+readflow share ./docs/changelog.md --expires 7d
+
+# Fetch a doc back
+readflow fetch "changelog" -o changelog.md
 
 # Or use the API directly
-curl -X POST https://your-instance.vercel.app/api/share \
+curl -X POST https://readflow.aranish.uk/api/share \
   -H "Authorization: Bearer rf_your_api_key" \
   -H "Content-Type: application/json" \
   -d '{"content": "# Hello from my agent", "title": "Agent Output"}'
