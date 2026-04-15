@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { resolveWikiLinks } from '@/lib/wikilinks';
 
 function isAdmin(email?: string | null): boolean {
     if (!email) return false;
@@ -46,6 +47,23 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const updated = await db.updateReadme(id, content, editAsUserId, title);
     if (!updated) {
         return NextResponse.json({ error: 'Not found or not authorized' }, { status: 403 });
+    }
+
+    // Re-parse wiki-links if doc belongs to a project
+    try {
+        const allDocs = await db.getReadmesByUser(editAsUserId);
+        const doc = allDocs.find(d => d.id === id);
+        if (doc?.projectId) {
+            const projectDocs = await db.getProjectDocs(doc.projectId);
+            const titleMap = new Map<string, { id: string; title: string }>();
+            for (const d of projectDocs) {
+                if (d.title && d.id !== id) titleMap.set(d.title, { id: d.id, title: d.title });
+            }
+            const links = resolveWikiLinks(content, titleMap);
+            await db.saveDocLinks(id, doc.projectId, links);
+        }
+    } catch {
+        // Non-critical — don't fail the edit if link parsing fails
     }
 
     return NextResponse.json({ ok: true });

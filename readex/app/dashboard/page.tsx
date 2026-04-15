@@ -7,7 +7,7 @@ import {
     FileText, Trash2, ExternalLink, Lock, Clock, Pencil, BarChart3, History,
     Plus, Pin, PinOff, FolderOpen, FolderPlus, Crown, Settings, Users,
     Upload, Grid3X3, List, ChevronRight, ChevronDown, MoreHorizontal, X,
-    ArrowLeft
+    ArrowLeft, Network, BrainCircuit
 } from 'lucide-react';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -23,6 +23,18 @@ interface DocEntry {
     folder?: string;
     pinned?: boolean;
     preview?: string;
+    projectId?: string;
+}
+
+interface ProjectEntry {
+    id: string;
+    name: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    docCount: number;
+    createdAt: number;
+    updatedAt: number;
 }
 
 type ViewMode = 'finder' | 'explorer';
@@ -59,6 +71,9 @@ function DashboardContent() {
     const [renameDoc, setRenameDoc] = useState<{ id: string; title: string } | null>(null);
     const [newFolderName, setNewFolderName] = useState('');
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; docId: string } | null>(null);
+    const [projects, setProjects] = useState<ProjectEntry[]>([]);
+    const [newProjectModal, setNewProjectModal] = useState(false);
+    const [newProjectName, setNewProjectName] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const gridRef = useRef<HTMLDivElement>(null);
     const internalDrag = useRef(false);
@@ -73,8 +88,12 @@ function DashboardContent() {
 
     const fetchDocs = useCallback(async () => {
         try {
-            const res = await fetch('/api/user/docs');
-            if (res.ok) setDocs(await res.json());
+            const [docsRes, projRes] = await Promise.all([
+                fetch('/api/user/docs'),
+                fetch('/api/projects'),
+            ]);
+            if (docsRes.ok) setDocs(await docsRes.json());
+            if (projRes.ok) setProjects(await projRes.json());
         } finally {
             setLoading(false);
         }
@@ -83,6 +102,44 @@ function DashboardContent() {
     useEffect(() => {
         if (status === 'authenticated') fetchDocs();
     }, [status, fetchDocs]);
+
+    const handleCreateProject = async () => {
+        const name = newProjectName.trim();
+        if (!name) return;
+        const res = await fetch('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (res.ok) {
+            const proj = await res.json();
+            setNewProjectModal(false);
+            setNewProjectName('');
+            router.push(`/project/${proj.id}`);
+        }
+    };
+
+    const handlePromoteToProject = async (folderName: string) => {
+        // Create project with folder name, then move all folder docs into it
+        const res = await fetch('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: folderName }),
+        });
+        if (!res.ok) return;
+        const proj = await res.json();
+        const folderDocs = docs.filter(d => d.folder === folderName);
+        await Promise.allSettled(
+            folderDocs.map(d =>
+                fetch(`/api/projects/${proj.id}/docs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ docId: d.id }),
+                })
+            )
+        );
+        router.push(`/project/${proj.id}`);
+    };
 
     // Close context menu on click outside
     useEffect(() => {
@@ -373,6 +430,9 @@ function DashboardContent() {
                     <button className={styles.uploadBtn} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                         <Upload size={14} /> Upload
                     </button>
+                    <button className={styles.uploadBtn} onClick={() => { setNewProjectModal(true); setNewProjectName(''); }}>
+                        <BrainCircuit size={14} /> Project
+                    </button>
                     <Link href="/" className={styles.newBtn}>
                         <Plus size={16} /> New
                     </Link>
@@ -416,6 +476,25 @@ function DashboardContent() {
                             <span>All Documents</span>
                             <span className={styles.sidebarCount}>{docs.length}</span>
                         </button>
+
+                        {projects.length > 0 && (
+                            <>
+                                <div className={styles.sidebarDivider} />
+                                {projects.map(p => (
+                                    <Link
+                                        key={p.id}
+                                        href={`/project/${p.id}`}
+                                        className={styles.sidebarItem}
+                                        style={{ color: '#8b5cf6' }}
+                                    >
+                                        <BrainCircuit size={14} />
+                                        <span className={styles.sidebarFolderName}>{p.name}</span>
+                                        <span className={styles.sidebarCount}>{p.docCount}</span>
+                                    </Link>
+                                ))}
+                                <div className={styles.sidebarDivider} />
+                            </>
+                        )}
 
                         {folders.map(f => {
                             const folderDocs = docs.filter(d => d.folder === f);
@@ -568,6 +647,25 @@ function DashboardContent() {
                     )}
 
                     <div className={styles.finderGrid} ref={gridRef} onMouseDown={handleMarqueeStart}>
+                        {/* Project cards */}
+                        {!activeFolder && projects.length > 0 && projects.map(p => (
+                            <div
+                                key={`project-${p.id}`}
+                                className={`${styles.finderItem} ${styles.folderItem} ${styles.projectItem}`}
+                                onDoubleClick={() => router.push(`/project/${p.id}`)}
+                            >
+                                <div className={styles.projectIcon}>
+                                    <BrainCircuit size={40} strokeWidth={1.2} />
+                                </div>
+                                <span className={styles.finderName}>{p.icon ? `${p.icon} ` : ''}{p.name}</span>
+                                <span className={styles.finderMeta}>{p.docCount} doc{p.docCount !== 1 ? 's' : ''}</span>
+                            </div>
+                        ))}
+
+                        {!activeFolder && projects.length > 0 && (folders.length > 0 || allRootDocs.length > 0) && (
+                            <div className={styles.sectionDivider}><span>Folders</span></div>
+                        )}
+
                         {!activeFolder && folders.map(f => {
                             const folderDocs = docs.filter(d => d.folder === f);
                             return (
@@ -658,8 +756,26 @@ function DashboardContent() {
                         </button>
                         <div className={styles.contextDivider} />
                         <button className={styles.contextItem} onClick={() => { setMoveModal({ docIds: [doc.id] }); setMoveNewFolder(''); setContextMenu(null); }}>
-                            <FolderOpen size={13} /> Move to project...
+                            <FolderOpen size={13} /> Move to folder...
                         </button>
+                        {projects.length > 0 && (
+                            <div className={styles.contextSubmenu}>
+                                <span className={styles.contextLabel}>Add to project</span>
+                                {projects.map(p => (
+                                    <button key={p.id} className={styles.contextItem} onClick={async () => {
+                                        await fetch(`/api/projects/${p.id}/docs`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ docId: doc.id }),
+                                        });
+                                        setContextMenu(null);
+                                        fetchDocs();
+                                    }}>
+                                        <BrainCircuit size={13} /> {p.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         <div className={styles.contextDivider} />
                         <button className={`${styles.contextItem} ${styles.contextDanger}`} onClick={() => { handleDelete(doc.id); setContextMenu(null); }}>
                             <Trash2 size={13} /> Delete
@@ -741,6 +857,34 @@ function DashboardContent() {
                                     if (input) handleRename(renameDoc.id, input.value);
                                 }}
                             >Rename</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* New Project modal */}
+            {newProjectModal && (
+                <div className={styles.modalOverlay} onClick={() => setNewProjectModal(false)}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                        <div className={styles.modalHeader}>
+                            <h3>Create project</h3>
+                            <button className={styles.modalClose} onClick={() => setNewProjectModal(false)}><X size={16} /></button>
+                        </div>
+                        <div className={styles.modalBody}>
+                            <input
+                                autoFocus
+                                className={styles.modalInput}
+                                value={newProjectName}
+                                onChange={e => setNewProjectName(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') handleCreateProject(); if (e.key === 'Escape') setNewProjectModal(false); }}
+                                placeholder="Project name..."
+                            />
+                            <button
+                                className={styles.modalCreateBtn}
+                                style={{ marginTop: '0.75rem' }}
+                                disabled={!newProjectName.trim()}
+                                onClick={handleCreateProject}
+                            >Create Project</button>
                         </div>
                     </div>
                 </div>

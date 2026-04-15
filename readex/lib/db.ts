@@ -51,6 +51,26 @@ export interface TeamEntry {
     createdAt: number;
 }
 
+export interface ProjectEntry {
+    id: string;
+    name: string;
+    userId: string;
+    teamId?: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface DocLink {
+    sourceId: string;
+    targetId: string;
+    projectId: string;
+    linkText: string;
+    createdAt: number;
+}
+
 interface DBAdapter {
     saveReadme(content: string, ip?: string, title?: string, opts?: { password?: string; expiresIn?: number; userId?: string; slug?: string }): Promise<string>;
     getReadme(id: string): Promise<ReadmeEntry | null>;
@@ -58,7 +78,7 @@ interface DBAdapter {
     updateReadme(id: string, content: string, userId: string, title?: string): Promise<boolean>;
     setSlug(id: string, slug: string, userId: string): Promise<boolean>;
     checkRateLimit(ip: string): Promise<boolean>;
-    getReadmesByUser(userId: string): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean; preview?: string }[]>;
+    getReadmesByUser(userId: string): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean; preview?: string; projectId?: string }[]>;
     deleteReadme(id: string, userId: string): Promise<boolean>;
     // Comments
     addComment(readmeId: string, authorName: string, content: string, userId?: string): Promise<string>;
@@ -105,6 +125,18 @@ interface DBAdapter {
     // Presence
     setPresence(docId: string, userId: string, userName: string, userImage?: string): Promise<void>;
     getPresence(docId: string): Promise<{ userId: string; name: string; image?: string; lastSeen: number }[]>;
+    // Projects
+    createProject(name: string, userId: string, opts?: { description?: string; icon?: string; color?: string }): Promise<string>;
+    getProject(id: string): Promise<ProjectEntry | null>;
+    getProjectsByUser(userId: string): Promise<ProjectEntry[]>;
+    updateProject(id: string, userId: string, updates: { name?: string; description?: string; icon?: string; color?: string }): Promise<boolean>;
+    deleteProject(id: string, userId: string): Promise<boolean>;
+    setDocProject(docId: string, userId: string, projectId: string | null): Promise<boolean>;
+    getProjectDocs(projectId: string): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; slug?: string; pinned?: boolean; preview?: string }[]>;
+    // Doc links
+    saveDocLinks(docId: string, projectId: string, links: { targetId: string; linkText: string }[]): Promise<void>;
+    getProjectGraph(projectId: string): Promise<{ sourceId: string; targetId: string; linkText: string }[]>;
+    getBacklinks(docId: string, projectId: string): Promise<{ sourceId: string; title?: string; linkText: string }[]>;
     // Admin stats
     getAdminStats(): Promise<{
         totalUsers: number;
@@ -301,19 +333,19 @@ const localAdapter: DBAdapter = {
         }
     },
 
-    async getReadmesByUser(userId): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean; preview?: string }[]> {
-        const results: { id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean; preview?: string }[] = [];
+    async getReadmesByUser(userId): Promise<{ id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean; preview?: string; projectId?: string }[]> {
+        const results: { id: string; title?: string; createdAt: number; hasPassword: boolean; expiresAt?: number; slug?: string; folder?: string; pinned?: boolean; preview?: string; projectId?: string }[] = [];
         if (process.env.NODE_ENV === 'development') {
             const store = readStore();
             for (const [id, entry] of Object.entries(store.readmes) as [string, any][]) {
                 if (entry.userId === userId) {
-                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug, folder: entry.folder, pinned: entry.pinned, preview: typeof entry.content === 'string' ? entry.content.slice(0, 200) : undefined });
+                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug, folder: entry.folder, pinned: entry.pinned, preview: typeof entry.content === 'string' ? entry.content.slice(0, 200) : undefined, projectId: entry.projectId || undefined });
                 }
             }
         } else {
             for (const [id, entry] of memoryStore.readmes.entries()) {
                 if (entry.userId === userId) {
-                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug, folder: entry.folder, pinned: entry.pinned, preview: typeof entry.content === 'string' ? entry.content.slice(0, 200) : undefined });
+                    results.push({ id, title: entry.title, createdAt: entry.createdAt || 0, hasPassword: !!entry.passwordHash, expiresAt: entry.expiresAt, slug: entry.slug, folder: entry.folder, pinned: entry.pinned, preview: typeof entry.content === 'string' ? entry.content.slice(0, 200) : undefined, projectId: entry.projectId || undefined });
                 }
             }
         }
@@ -848,6 +880,103 @@ const localAdapter: DBAdapter = {
             .filter(([, p]: [string, any]) => p.lastSeen > cutoff)
             .map(([userId, p]: [string, any]) => ({ userId, name: p.name, image: p.image, lastSeen: p.lastSeen }));
     },
+
+    // --- Projects (local) ---
+    async createProject(name, userId, opts) {
+        const id = nanoid(10);
+        const store = readStore();
+        if (!store.projects) store.projects = {};
+        store.projects[id] = {
+            name, userId, description: opts?.description || '', icon: opts?.icon || '',
+            color: opts?.color || '', createdAt: Date.now(), updatedAt: Date.now(),
+        };
+        if (!store.docLinks) store.docLinks = {};
+        writeStore(store);
+        return id;
+    },
+    async getProject(id) {
+        const store = readStore();
+        const p = store.projects?.[id];
+        if (!p) return null;
+        return { id, name: p.name, userId: p.userId, teamId: p.teamId, description: p.description, icon: p.icon, color: p.color, createdAt: p.createdAt, updatedAt: p.updatedAt };
+    },
+    async getProjectsByUser(userId) {
+        const store = readStore();
+        return Object.entries(store.projects || {})
+            .filter(([, p]: [string, any]) => p.userId === userId)
+            .map(([id, p]: [string, any]) => ({ id, name: p.name, userId: p.userId, teamId: p.teamId, description: p.description, icon: p.icon, color: p.color, createdAt: p.createdAt, updatedAt: p.updatedAt }))
+            .sort((a, b) => b.updatedAt - a.updatedAt);
+    },
+    async updateProject(id, userId, updates) {
+        const store = readStore();
+        const p = store.projects?.[id];
+        if (!p || p.userId !== userId) return false;
+        if (updates.name !== undefined) p.name = updates.name;
+        if (updates.description !== undefined) p.description = updates.description;
+        if (updates.icon !== undefined) p.icon = updates.icon;
+        if (updates.color !== undefined) p.color = updates.color;
+        p.updatedAt = Date.now();
+        writeStore(store);
+        return true;
+    },
+    async deleteProject(id, userId) {
+        const store = readStore();
+        const p = store.projects?.[id];
+        if (!p || p.userId !== userId) return false;
+        // Remove project_id from all docs in this project
+        for (const entry of Object.values(store.readmes) as any[]) {
+            if (entry.projectId === id) entry.projectId = null;
+        }
+        // Remove doc links for this project
+        if (store.docLinks) delete store.docLinks[id];
+        delete store.projects[id];
+        writeStore(store);
+        return true;
+    },
+    async setDocProject(docId, userId, projectId) {
+        const store = readStore();
+        const entry = store.readmes[docId];
+        if (!entry || entry.userId !== userId) return false;
+        entry.projectId = projectId;
+        writeStore(store);
+        return true;
+    },
+    async getProjectDocs(projectId) {
+        const store = readStore();
+        return Object.entries(store.readmes || {})
+            .filter(([, r]: [string, any]) => r.projectId === projectId)
+            .map(([id, r]: [string, any]) => ({
+                id, title: r.title, createdAt: r.createdAt || 0, hasPassword: !!r.passwordHash,
+                slug: r.slug, pinned: r.pinned, preview: (r.content || '').slice(0, 200),
+            }))
+            .sort((a, b) => b.createdAt - a.createdAt);
+    },
+    async saveDocLinks(docId, projectId, links) {
+        const store = readStore();
+        if (!store.docLinks) store.docLinks = {};
+        if (!store.docLinks[projectId]) store.docLinks[projectId] = [];
+        // Remove existing links from this source
+        store.docLinks[projectId] = store.docLinks[projectId].filter((l: any) => l.sourceId !== docId);
+        // Add new links
+        for (const link of links) {
+            store.docLinks[projectId].push({ sourceId: docId, targetId: link.targetId, linkText: link.linkText, createdAt: Date.now() });
+        }
+        writeStore(store);
+    },
+    async getProjectGraph(projectId) {
+        const store = readStore();
+        return (store.docLinks?.[projectId] || []).map((l: any) => ({
+            sourceId: l.sourceId, targetId: l.targetId, linkText: l.linkText,
+        }));
+    },
+    async getBacklinks(docId, projectId) {
+        const store = readStore();
+        const links = (store.docLinks?.[projectId] || []).filter((l: any) => l.targetId === docId);
+        return links.map((l: any) => {
+            const sourceDoc = store.readmes[l.sourceId];
+            return { sourceId: l.sourceId, title: sourceDoc?.title, linkText: l.linkText };
+        });
+    },
 };
 
 // --- 2. Cloudflare D1 Adapter (Production via REST) ---
@@ -905,6 +1034,10 @@ async function ensureD1Tables() {
     await safeAlter(`ALTER TABLE readmes ADD COLUMN team_id TEXT`);
     // Presence
     await queryD1(`CREATE TABLE IF NOT EXISTS presence (doc_id TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT, user_image TEXT, last_seen INTEGER, PRIMARY KEY (doc_id, user_id))`);
+    // Projects
+    await queryD1(`CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, user_id TEXT NOT NULL, team_id TEXT, description TEXT, icon TEXT, color TEXT, created_at INTEGER, updated_at INTEGER)`);
+    await queryD1(`CREATE TABLE IF NOT EXISTS doc_links (source_id TEXT NOT NULL, target_id TEXT NOT NULL, project_id TEXT NOT NULL, link_text TEXT, created_at INTEGER, PRIMARY KEY (source_id, target_id, project_id))`);
+    await safeAlter(`ALTER TABLE readmes ADD COLUMN project_id TEXT`);
 }
 
 // Track init
@@ -1017,7 +1150,7 @@ const cloudflareAdapter: DBAdapter = {
     async getReadmesByUser(userId) {
         await initD1();
         const results = await queryD1(
-            `SELECT id, title, created_at, password_hash, expires_at, slug, folder, pinned, SUBSTR(content, 1, 200) as preview FROM readmes WHERE user_id = ? ORDER BY pinned DESC, created_at DESC`,
+            `SELECT id, title, created_at, password_hash, expires_at, slug, folder, pinned, project_id, SUBSTR(content, 1, 200) as preview FROM readmes WHERE user_id = ? ORDER BY pinned DESC, created_at DESC`,
             [userId]
         );
         return results.map((r: any) => ({
@@ -1030,6 +1163,7 @@ const cloudflareAdapter: DBAdapter = {
             folder: r.folder || undefined,
             pinned: !!r.pinned,
             preview: r.preview || undefined,
+            projectId: r.project_id || undefined,
         }));
     },
 
@@ -1354,6 +1488,90 @@ const cloudflareAdapter: DBAdapter = {
         const cutoff = Date.now() - 60000;
         const results = await queryD1(`SELECT user_id, user_name, user_image, last_seen FROM presence WHERE doc_id = ? AND last_seen > ?`, [docId, cutoff]);
         return results.map((r: any) => ({ userId: r.user_id, name: r.user_name, image: r.user_image, lastSeen: r.last_seen }));
+    },
+
+    // --- Projects (D1) ---
+    async createProject(name, userId, opts) {
+        await initD1();
+        const id = nanoid(10);
+        await queryD1(
+            `INSERT INTO projects (id, name, user_id, description, icon, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, name, userId, opts?.description || null, opts?.icon || null, opts?.color || null, Date.now(), Date.now()]
+        );
+        return id;
+    },
+    async getProject(id) {
+        await initD1();
+        const results = await queryD1(`SELECT * FROM projects WHERE id = ? LIMIT 1`, [id]);
+        if (results.length === 0) return null;
+        const p = results[0];
+        return { id: p.id, name: p.name, userId: p.user_id, teamId: p.team_id || undefined, description: p.description || undefined, icon: p.icon || undefined, color: p.color || undefined, createdAt: p.created_at, updatedAt: p.updated_at };
+    },
+    async getProjectsByUser(userId) {
+        await initD1();
+        const results = await queryD1(`SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC`, [userId]);
+        return results.map((p: any) => ({ id: p.id, name: p.name, userId: p.user_id, teamId: p.team_id || undefined, description: p.description || undefined, icon: p.icon || undefined, color: p.color || undefined, createdAt: p.created_at, updatedAt: p.updated_at }));
+    },
+    async updateProject(id, userId, updates) {
+        await initD1();
+        const results = await queryD1(`SELECT user_id FROM projects WHERE id = ? LIMIT 1`, [id]);
+        if (results.length === 0 || results[0].user_id !== userId) return false;
+        const sets: string[] = ['updated_at = ?'];
+        const params: any[] = [Date.now()];
+        if (updates.name !== undefined) { sets.push('name = ?'); params.push(updates.name); }
+        if (updates.description !== undefined) { sets.push('description = ?'); params.push(updates.description); }
+        if (updates.icon !== undefined) { sets.push('icon = ?'); params.push(updates.icon); }
+        if (updates.color !== undefined) { sets.push('color = ?'); params.push(updates.color); }
+        params.push(id);
+        await queryD1(`UPDATE projects SET ${sets.join(', ')} WHERE id = ?`, params);
+        return true;
+    },
+    async deleteProject(id, userId) {
+        await initD1();
+        const results = await queryD1(`SELECT user_id FROM projects WHERE id = ? LIMIT 1`, [id]);
+        if (results.length === 0 || results[0].user_id !== userId) return false;
+        await queryD1(`UPDATE readmes SET project_id = NULL WHERE project_id = ?`, [id]);
+        await queryD1(`DELETE FROM doc_links WHERE project_id = ?`, [id]);
+        await queryD1(`DELETE FROM projects WHERE id = ?`, [id]);
+        return true;
+    },
+    async setDocProject(docId, userId, projectId) {
+        await initD1();
+        const results = await queryD1(`SELECT user_id FROM readmes WHERE id = ? LIMIT 1`, [docId]);
+        if (results.length === 0 || results[0].user_id !== userId) return false;
+        await queryD1(`UPDATE readmes SET project_id = ? WHERE id = ?`, [projectId, docId]);
+        return true;
+    },
+    async getProjectDocs(projectId) {
+        await initD1();
+        const results = await queryD1(
+            `SELECT id, title, created_at, password_hash, slug, pinned, SUBSTR(content, 1, 200) as preview FROM readmes WHERE project_id = ? ORDER BY created_at DESC`,
+            [projectId]
+        );
+        return results.map((r: any) => ({ id: r.id, title: r.title || undefined, createdAt: r.created_at, hasPassword: !!r.password_hash, slug: r.slug || undefined, pinned: !!r.pinned, preview: r.preview || undefined }));
+    },
+    async saveDocLinks(docId, projectId, links) {
+        await initD1();
+        await queryD1(`DELETE FROM doc_links WHERE source_id = ? AND project_id = ?`, [docId, projectId]);
+        for (const link of links) {
+            await queryD1(
+                `INSERT INTO doc_links (source_id, target_id, project_id, link_text, created_at) VALUES (?, ?, ?, ?, ?)`,
+                [docId, link.targetId, projectId, link.linkText, Date.now()]
+            );
+        }
+    },
+    async getProjectGraph(projectId) {
+        await initD1();
+        const results = await queryD1(`SELECT source_id, target_id, link_text FROM doc_links WHERE project_id = ?`, [projectId]);
+        return results.map((r: any) => ({ sourceId: r.source_id, targetId: r.target_id, linkText: r.link_text }));
+    },
+    async getBacklinks(docId, projectId) {
+        await initD1();
+        const results = await queryD1(
+            `SELECT dl.source_id, dl.link_text, r.title FROM doc_links dl LEFT JOIN readmes r ON dl.source_id = r.id WHERE dl.target_id = ? AND dl.project_id = ?`,
+            [docId, projectId]
+        );
+        return results.map((r: any) => ({ sourceId: r.source_id, title: r.title || undefined, linkText: r.link_text }));
     },
 };
 

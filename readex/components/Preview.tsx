@@ -25,6 +25,7 @@ const sanitizeSchema = {
         'figure', 'figcaption',
         'video', 'audio',
         'svg', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon', 'g', 'defs', 'use', 'text', 'tspan',
+        'span',
     ],
     attributes: {
         ...defaultSchema.attributes,
@@ -49,6 +50,7 @@ const sanitizeSchema = {
         video: ['src', 'poster', 'controls', 'width', 'height', 'autoPlay', 'loop', 'muted'],
         audio: ['src', 'controls'],
         abbr: ['title'],
+        span: ['className', 'class', 'data-wikilink'],
         svg: ['viewBox', 'width', 'height', 'xmlns', 'fill', 'stroke'],
         path: ['d', 'fill', 'stroke', 'strokeWidth', 'strokeLinecap', 'strokeLinejoin'],
         circle: ['cx', 'cy', 'r', 'fill', 'stroke'],
@@ -310,12 +312,24 @@ const markdownComponents: Components = {
     },
 };
 
+// Pre-process [[wiki-links]] into markdown links
+function processWikiLinks(content: string): string {
+    // Convert [[Note Name]] to styled inline spans that look like wiki-links
+    // These render as clickable internal links with a distinct style
+    return content.replace(/\[\[([^\]]+)\]\]/g, (_match, target: string) => {
+        const trimmed = target.trim();
+        return `<span class="wikilink" data-wikilink="${trimmed}">${trimmed}</span>`;
+    });
+}
+
 interface PreviewProps {
     content: string;
     className?: string;
 }
 
 export default function Preview({ content, className }: PreviewProps) {
+    const processed = processWikiLinks(content);
+
     return (
         <div className={`${styles.previewContainer}${className ? ` ${className}` : ''}`}>
             <div className={styles.markdownBody} data-preview-content>
@@ -324,7 +338,7 @@ export default function Preview({ content, className }: PreviewProps) {
                     rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeHighlight, rehypeKatex]}
                     components={markdownComponents}
                 >
-                    {content}
+                    {processed}
                 </ReactMarkdown>
             </div>
         </div>

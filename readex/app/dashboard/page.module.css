@@ -348,6 +348,28 @@
     color: #58a6ff;
 }
 
+/* Project cards */
+
+.projectItem {
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    background-color: rgba(139, 92, 246, 0.04);
+}
+
+.projectItem:hover {
+    background-color: rgba(139, 92, 246, 0.08) !important;
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.projectIcon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 56px;
+    color: #8b5cf6;
+}
+
 .dropTarget {
     background-color: rgba(56, 139, 253, 0.1) !important;
     outline: 2px dashed var(--accent-primary);
