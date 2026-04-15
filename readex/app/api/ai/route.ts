@@ -91,7 +91,7 @@ async function callAnthropic(systemPrompt: string, userContent: string): Promise
 }
 
 async function callGemini(systemPrompt: string, userContent: string): Promise<string> {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b-it:generateContent?key=${GEMINI_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
