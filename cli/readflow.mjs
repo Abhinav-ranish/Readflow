@@ -1039,117 +1039,102 @@ async function handleBrain(args) {
     }
     console.log(`\n  Total: ${formatBytes(totalSize)}\n`);
 
-    // Build combined document with metadata
-    const sections = [];
-    sections.push(`# ${projectName} — Project Brain\n`);
-    sections.push(`> Curated knowledge base. ${filesToUpload.length} files, ${formatBytes(totalSize)} total.`);
-    sections.push(`> Generated: ${new Date().toISOString()}\n`);
-    sections.push(`---\n`);
-
-    // Table of contents
-    sections.push(`## Contents\n`);
-    for (const f of filesToUpload) {
-        const anchor = f.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
-        sections.push(`- [${f}](#${anchor})`);
-    }
-    sections.push('\n---\n');
-
-    for (const f of filesToUpload) {
-        try {
-            const content = readFileSync(join(process.cwd(), f), 'utf8');
-            const ext = f.split('.').pop() || '';
-            sections.push(`## ${f}\n`);
-            sections.push(`> Source: \`${f}\` | Type: ${ext} | Size: ${formatBytes(Buffer.byteLength(content))}\n`);
-            if (f.endsWith('.md') || f.endsWith('.mdx')) {
-                sections.push(content);
-            } else {
-                sections.push('```' + ext + '\n' + content + '\n```');
-            }
-            sections.push('\n---\n');
-        } catch {
-            sections.push(`## ${f}\n\n*File could not be read.*\n\n---\n`);
-        }
-    }
-
-    const brainDoc = sections.join('\n');
-
-    // Upload as upsert
-    const slug = `${projectName}-brain`.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 60);
-
     console.log('  Uploading brain...\n');
 
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+    const slugBase = projectName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 40);
+
+    // 1. Find or create the project
+    let projectId = null;
     try {
-        const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-        const res = await fetch(`${API_BASE}/api/share`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-                content: brainDoc,
-                title: `${projectName} Brain`,
-                upsertSlug: slug,
-            }),
-        });
-
-        if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            console.error(`  Error: ${data.error || `HTTP ${res.status}`}`);
-            process.exit(1);
+        const projListRes = await fetch(`${API_BASE}/api/projects`, { headers });
+        const projects = projListRes.ok ? await projListRes.json() : [];
+        for (const p of projects) {
+            if (p.name === projectName) { projectId = p.id; break; }
         }
-
-        const data = await res.json();
-        console.log(`  ✓ Brain ${data.updated ? 'updated' : 'uploaded'} successfully!`);
-        console.log(`  URL: ${data.url}`);
-        console.log(`  Slug: /p/${slug}`);
-
-        // Auto-create or find matching project, then link the doc to it
-        try {
-            // List existing projects and find one matching this brain name
-            const projListRes = await fetch(`${API_BASE}/api/projects`, { headers });
-            const projects = projListRes.ok ? await projListRes.json() : [];
-            let projectId = null;
-            const brainTitle = `${projectName} Brain`;
-            for (const p of projects) {
-                if (p.name === projectName || p.name === brainTitle) {
-                    projectId = p.id;
-                    break;
-                }
+        if (!projectId) {
+            const createRes = await fetch(`${API_BASE}/api/projects`, {
+                method: 'POST', headers,
+                body: JSON.stringify({ name: projectName }),
+            });
+            if (createRes.ok) {
+                const proj = await createRes.json();
+                projectId = proj.id;
+                console.log(`  ✓ Created project "${projectName}"`);
             }
-            // Create project if none found
-            if (!projectId) {
-                const createRes = await fetch(`${API_BASE}/api/projects`, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({ name: projectName }),
-                });
-                if (createRes.ok) {
-                    const proj = await createRes.json();
-                    projectId = proj.id;
-                    console.log(`  ✓ Created project "${projectName}"`);
-                }
-            }
-            // Link brain doc to project
-            if (projectId && data.id) {
-                const linkRes = await fetch(`${API_BASE}/api/projects/${projectId}/docs`, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({ docId: data.id }),
-                });
-                if (linkRes.ok) {
-                    console.log(`  ✓ Linked to project "${projectName}"`);
-                }
-            }
-        } catch {
-            // Non-fatal — brain was uploaded, just couldn't link to project
+        } else {
+            console.log(`  ✓ Found project "${projectName}"`);
         }
-
-        console.log('');
-        brainCfg.lastUpload = Date.now();
-        brainCfg.url = data.url;
-        saveBrainConfig(brainCfg);
     } catch {
-        console.error(`  Error: Could not connect to ${API_BASE}`);
+        console.error('  Error: Could not create/find project.');
         process.exit(1);
     }
+
+    // 2. Upload each file as its own document, linked to the project
+    const CONCURRENCY = 5;
+    let uploaded = 0;
+    let failed = 0;
+
+    for (let i = 0; i < filesToUpload.length; i += CONCURRENCY) {
+        const batch = filesToUpload.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(batch.map(async (f) => {
+            let content;
+            try {
+                content = readFileSync(join(process.cwd(), f), 'utf8');
+            } catch {
+                return { file: f, ok: false };
+            }
+
+            const ext = f.split('.').pop() || '';
+            const isMarkdown = ext === 'md' || ext === 'mdx';
+            const docContent = isMarkdown ? content : '```' + ext + '\n' + content + '\n```';
+
+            // Title from first heading or filename
+            const headingMatch = isMarkdown && content.match(/^#\s+(.+)/m);
+            const title = headingMatch ? headingMatch[1].trim() : f.replace(/\.[^.]+$/, '').split('/').pop();
+
+            // Slug: project-name/file-path (e.g. ada/docs-readme)
+            const fileSlug = f.replace(/\.[^.]+$/, '').replace(/[^a-z0-9/]/gi, '-').replace(/-+/g, '-').toLowerCase();
+            const slug = `${slugBase}-${fileSlug}`.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 60);
+
+            const res = await fetch(`${API_BASE}/api/share`, {
+                method: 'POST', headers,
+                body: JSON.stringify({ content: docContent, title, upsertSlug: slug }),
+            });
+
+            if (!res.ok) return { file: f, ok: false };
+            const data = await res.json();
+
+            // Link to project
+            if (projectId && data.id) {
+                await fetch(`${API_BASE}/api/projects/${projectId}/docs`, {
+                    method: 'POST', headers,
+                    body: JSON.stringify({ docId: data.id }),
+                }).catch(() => {});
+            }
+
+            return { file: f, ok: true, id: data.id, updated: data.updated };
+        }));
+
+        for (const r of results) {
+            if (r.status === 'fulfilled' && r.value.ok) {
+                uploaded++;
+                const mark = r.value.updated ? '↻' : '✓';
+                process.stdout.write(`\r  ${mark} ${uploaded}/${filesToUpload.length} files uploaded`);
+            } else {
+                failed++;
+                const file = r.status === 'fulfilled' ? r.value.file : '?';
+                console.error(`\n  ✗ Failed: ${file}`);
+            }
+        }
+    }
+
+    console.log(`\n\n  ✓ Brain uploaded — ${uploaded} docs in project "${projectName}"`);
+    if (failed > 0) console.log(`  ⚠ ${failed} file(s) failed`);
+    console.log(`  View: ${API_BASE}/brains\n`);
+
+    brainCfg.lastUpload = Date.now();
+    saveBrainConfig(brainCfg);
 }
 
 function formatBytes(bytes) {
