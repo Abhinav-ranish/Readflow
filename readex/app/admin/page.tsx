@@ -21,6 +21,7 @@ interface Doc {
     id: string;
     title?: string;
     userId?: string;
+    projectId?: string;
     createdAt: number;
     slug?: string;
     folder?: string;
@@ -131,6 +132,7 @@ export default function AdminPage() {
     const [actionError, setActionError] = useState<string | null>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [dragOverUser, setDragOverUser] = useState<string | null>(null);
+    const [dragOverProject, setDragOverProject] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [projects, setProjects] = useState<ProjectEntry[]>([]);
 
@@ -270,7 +272,7 @@ export default function AdminPage() {
         setIsDragging(true);
     };
 
-    const handleDragEnd = () => { setIsDragging(false); setDragOverUser(null); };
+    const handleDragEnd = () => { setIsDragging(false); setDragOverUser(null); setDragOverProject(null); };
 
     const handleDropOnUser = async (e: React.DragEvent, userId: string) => {
         e.preventDefault();
@@ -286,6 +288,25 @@ export default function AdminPage() {
         const moved = docIds.filter((_, i) => results[i].status === 'fulfilled' && (results[i] as PromiseFulfilledResult<Response>).value.ok);
         if (moved.length > 0) setDocs(prev => prev.map(d => moved.includes(d.id) ? { ...d, userId } : d));
         if (moved.length < docIds.length) showError(`Failed to move ${docIds.length - moved.length} document(s)`);
+    };
+
+    const handleDropOnProject = async (e: React.DragEvent, projectId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOverProject(null);
+        setIsDragging(false);
+        let docIds: string[];
+        try { docIds = JSON.parse(e.dataTransfer.getData('text/plain')); } catch { return; }
+        if (!docIds || docIds.length === 0) return;
+        const results = await Promise.allSettled(docIds.map(id =>
+            fetch('/api/admin/docs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, projectId }) })
+        ));
+        const linked = docIds.filter((_, i) => results[i].status === 'fulfilled' && (results[i] as PromiseFulfilledResult<Response>).value.ok);
+        if (linked.length > 0) {
+            setDocs(prev => prev.map(d => linked.includes(d.id) ? { ...d, projectId } : d));
+            setProjects(prev => prev.map(p => p.id === projectId ? { ...p, docCount: p.docCount + linked.length } : p));
+        }
+        if (linked.length < docIds.length) showError(`Failed to link ${docIds.length - linked.length} document(s)`);
     };
 
     // Click to select (with Cmd, Shift, plain click)
@@ -489,22 +510,25 @@ export default function AdminPage() {
                             <div className={styles.sectionDivider}><BrainCircuit size={13} /><span>Projects ({projects.length})</span></div>
                             {projects.map(p => {
                                 const owner = users.find(u => u.id === p.userId);
+                                const linkedDocs = docs.filter(d => d.projectId === p.id);
                                 return (
-                                    <Link
+                                    <div
                                         key={`project-${p.id}`}
-                                        href={`/project/${p.id}`}
-                                        className={`${styles.finderItem} ${styles.folderItem}`}
-                                        style={{ textDecoration: 'none' }}
+                                        className={`${styles.finderItem} ${styles.folderItem} ${dragOverProject === p.id ? styles.dropTarget : ''}`}
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverProject(p.id); }}
+                                        onDragLeave={(e) => { if (e.currentTarget === e.target || !e.currentTarget.contains(e.relatedTarget as Node)) setDragOverProject(null); }}
+                                        onDrop={(e) => handleDropOnProject(e, p.id)}
+                                        onDoubleClick={() => window.open(`/project/${p.id}`, '_blank')}
                                     >
                                         <div className={styles.folderIcon}>
                                             <BrainCircuit size={40} strokeWidth={1} />
                                         </div>
                                         <span className={styles.finderName}>{p.icon ? `${p.icon} ` : ''}{p.name}</span>
                                         <span className={styles.finderMeta}>
-                                            {p.docCount} doc{p.docCount !== 1 ? 's' : ''}
+                                            {linkedDocs.length} doc{linkedDocs.length !== 1 ? 's' : ''}
                                             {owner ? ` · ${owner.name || owner.email.split('@')[0]}` : ''}
                                         </span>
-                                    </Link>
+                                    </div>
                                 );
                             })}
                             <div className={styles.sectionDivider}><span>Users</span></div>
