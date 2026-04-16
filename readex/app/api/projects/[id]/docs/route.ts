@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { resolveUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { parseWikiLinks, resolveWikiLinks } from '@/lib/wikilinks';
 
 // GET /api/projects/[id]/docs — list docs in a project
 export async function GET(
-    _request: NextRequest,
+    request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const session = await auth();
-    const userId = (session?.user as any)?.dbId;
+    const userId = await resolveUserId(request);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
@@ -27,8 +26,7 @@ export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const session = await auth();
-    const userId = (session?.user as any)?.dbId;
+    const userId = await resolveUserId(request);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id: projectId } = await params;

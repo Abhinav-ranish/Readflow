@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
 import GitHub from 'next-auth/providers/github';
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -51,3 +52,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         signIn: '/login',
     },
 });
+
+/**
+ * Resolve userId from session (cookie) or Bearer API key.
+ * Use in API routes that need to support both browser and CLI auth.
+ */
+export async function resolveUserId(request?: NextRequest): Promise<string | null> {
+    // Try Bearer token first (CLI)
+    if (request) {
+        const authHeader = request.headers.get('authorization');
+        if (authHeader?.startsWith('Bearer ')) {
+            const apiKey = authHeader.slice(7).trim();
+            if (apiKey) {
+                const keyUser = await db.getUserByApiKey(apiKey);
+                if (keyUser) return keyUser.id;
+            }
+        }
+    }
+    // Fall back to session (browser)
+    try {
+        const session = await auth();
+        return (session?.user as any)?.dbId || null;
+    } catch {
+        return null;
+    }
+}

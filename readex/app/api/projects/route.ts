@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { resolveUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 
 // GET /api/projects — list user's projects
-export async function GET() {
-    const session = await auth();
-    const userId = (session?.user as any)?.dbId;
+export async function GET(request: NextRequest) {
+    const userId = await resolveUserId(request);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const projects = await db.getProjectsByUser(userId);
@@ -14,8 +13,7 @@ export async function GET() {
 
 // POST /api/projects — create a project
 export async function POST(request: NextRequest) {
-    const session = await auth();
-    const userId = (session?.user as any)?.dbId;
+    const userId = await resolveUserId(request);
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
