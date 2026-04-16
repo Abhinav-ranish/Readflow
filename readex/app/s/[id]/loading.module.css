@@ -22,15 +22,15 @@
     inset: 0;
     border-radius: 50%;
     border: 2.5px solid transparent;
-    border-top-color: rgba(56, 139, 253, 0.85);
-    border-right-color: rgba(56, 139, 253, 0.3);
+    border-top-color: var(--accent-primary, #388bfd);
+    border-right-color: color-mix(in srgb, var(--accent-primary, #388bfd) 30%, transparent);
     animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
 }
 
 .ring2 {
     inset: 7px;
-    border-top-color: rgba(88, 166, 255, 0.75);
-    border-right-color: rgba(88, 166, 255, 0.2);
+    border-top-color: color-mix(in srgb, var(--accent-primary, #388bfd) 75%, white);
+    border-right-color: color-mix(in srgb, var(--accent-primary, #388bfd) 20%, transparent);
     animation-duration: 1.8s;
     animation-direction: reverse;
 }
@@ -40,7 +40,7 @@
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(56, 139, 253, 0.18) 0%, transparent 70%);
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent-primary, #388bfd) 18%, transparent) 0%, transparent 70%);
     animation: pulse 2s ease-in-out infinite;
 }
 
@@ -76,7 +76,7 @@
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: rgba(56, 139, 253, 0.5);
+    background: color-mix(in srgb, var(--accent-primary, #388bfd) 50%, transparent);
     animation: bounce 1.4s ease-in-out infinite;
 }
 
