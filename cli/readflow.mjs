@@ -1097,10 +1097,52 @@ async function handleBrain(args) {
         }
 
         const data = await res.json();
-        console.log(`  ✓ Brain ${data.updated ? 'updated' : 'uploaded'} successfully!\n`);
+        console.log(`  ✓ Brain ${data.updated ? 'updated' : 'uploaded'} successfully!`);
         console.log(`  URL: ${data.url}`);
-        console.log(`  Slug: /p/${slug}\n`);
+        console.log(`  Slug: /p/${slug}`);
 
+        // Auto-create or find matching project, then link the doc to it
+        try {
+            // List existing projects and find one matching this brain name
+            const projListRes = await fetch(`${API_BASE}/api/projects`, { headers });
+            const projects = projListRes.ok ? await projListRes.json() : [];
+            let projectId = null;
+            const brainTitle = `${projectName} Brain`;
+            for (const p of projects) {
+                if (p.name === projectName || p.name === brainTitle) {
+                    projectId = p.id;
+                    break;
+                }
+            }
+            // Create project if none found
+            if (!projectId) {
+                const createRes = await fetch(`${API_BASE}/api/projects`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ name: projectName }),
+                });
+                if (createRes.ok) {
+                    const proj = await createRes.json();
+                    projectId = proj.id;
+                    console.log(`  ✓ Created project "${projectName}"`);
+                }
+            }
+            // Link brain doc to project
+            if (projectId && data.id) {
+                const linkRes = await fetch(`${API_BASE}/api/projects/${projectId}/docs`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ docId: data.id }),
+                });
+                if (linkRes.ok) {
+                    console.log(`  ✓ Linked to project "${projectName}"`);
+                }
+            }
+        } catch {
+            // Non-fatal — brain was uploaded, just couldn't link to project
+        }
+
+        console.log('');
         brainCfg.lastUpload = Date.now();
         brainCfg.url = data.url;
         saveBrainConfig(brainCfg);
