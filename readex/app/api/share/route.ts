@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 });
         }
 
-        // Get user if authenticated (session cookie or API key)
+        // Get user — authentication required
         let userId: string | undefined;
         const authHeader = request.headers.get('authorization');
         if (authHeader?.startsWith('Bearer ')) {
@@ -86,7 +86,11 @@ export async function POST(request: NextRequest) {
             try {
                 const session = await auth();
                 userId = (session?.user as any)?.dbId;
-            } catch { /* not authenticated, that's fine */ }
+            } catch {}
+        }
+
+        if (!userId) {
+            return NextResponse.json({ error: 'Authentication required. Log in or provide an API token.' }, { status: 401 });
         }
 
         // Upsert by slug: if upsertSlug provided and user is authenticated,
