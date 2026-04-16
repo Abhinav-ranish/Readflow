@@ -1,6 +1,6 @@
 # readflow-md
 
-Share and fetch markdown files from the terminal. Documents appear on [readflow.aranish.uk](https://readflow.aranish.uk) with a shareable link.
+Share markdown files and project knowledge from the terminal. Documents appear on [readflow.aranish.uk](https://readflow.aranish.uk) with a shareable link.
 
 ## Install
 
@@ -26,6 +26,9 @@ readflow login
 # Share with a title
 readflow share docs/api.md --title "API Reference"
 
+# Upload your project's knowledge base
+readflow brain
+
 # Fetch a doc back
 readflow fetch "API Reference" -o api.md
 ```
@@ -42,7 +45,7 @@ readflow share README.md --title "My Project"
 readflow share README.md --password secret
 readflow share README.md --expires 7d
 readflow share README.md --update        # upsert by slug
-cat notes.md | readflow share -          # pipe from stdin
+cat notes.md | readflow share            # pipe from stdin
 ```
 
 **Options:**
@@ -54,6 +57,57 @@ cat notes.md | readflow share -          # pipe from stdin
 | `--expires` | `-e` | Set expiry (`1h`, `24h`, `7d`) |
 | `--update` | `-u` | Update existing doc instead of creating new |
 | `--token` | | One-time token override |
+| `--help` | `-h` | Show command help |
+
+### `brain`
+
+Upload a curated project knowledge base to Readflow. This is intentional knowledge capture — not a repo scrape.
+
+```bash
+# Scan knowledge folders, review, and upload
+readflow brain
+
+# Preview included/excluded files with reasons
+readflow brain --dry-run
+
+# Re-configure which files to include
+readflow brain --config
+
+# Start fresh — delete brain.json
+readflow brain --reset
+```
+
+**Default behavior:**
+
+The brain prioritizes content from knowledge-oriented locations:
+
+- **Knowledge roots** (auto-scanned): `docs/`, `brain/`, `notes/`, `knowledge/`, `wiki/`, `design/`, `specs/`, `rfcs/`, `adrs/`
+- **Key root docs** (auto-included): `README.md`, `CHANGELOG.md`, `ROADMAP.md`, `CONTRIBUTING.md`, `ARCHITECTURE.md`, `PRD*.md`, `ADR*.md`, `RFC*.md`
+- **Markdown/text** files are included by default from these locations
+- **Structured files** (yaml, json, toml) are only included when inside a knowledge folder — `tsconfig.json`, `package.json`, `docker-compose.yml` etc. are excluded
+
+**Always excluded:**
+
+`.env*`, `*.key`, `*.pem`, `*.log`, lockfiles, binaries, images, build output (`dist/`, `build/`, `.next/`), `node_modules/`, `vendor/`, `coverage/`, `.git/`, files > 256KB
+
+**Customization:**
+
+| File | Purpose |
+|------|---------|
+| `.brainignore` | Exclude patterns (gitignore syntax) |
+| `.braininclude` | If present, ONLY these patterns are considered |
+| `.readflow/brain.json` | Saved selection from interactive picker |
+
+The `--dry-run` flag shows exactly what would be included and excluded, with reasons for each decision.
+
+**Options:**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--dry-run` | `-n` | Preview included/excluded with reasons |
+| `--config` | `-c` | Re-pick which files to include |
+| `--reset` | | Delete brain.json and start fresh |
+| `--help` | `-h` | Show command help |
 
 ### `fetch [query]`
 
@@ -92,6 +146,7 @@ readflow fetch abc123 --password secret
 | `--password` | `-p` | Password for protected documents |
 | `--json` | | Output as JSON with title, date, and slug |
 | `--list` | `-l` | List all docs grouped by folder |
+| `--help` | `-h` | Show command help |
 
 **How search works:**
 
@@ -107,6 +162,43 @@ Authenticate via browser. Opens a browser window to log in with GitHub/Google. O
 readflow login
 ```
 
+### `install`
+
+Set up Readflow in a project. Creates agent skill files and a git hook for auto-syncing.
+
+```bash
+readflow install
+readflow install --reconfigure   # Re-pick tracked files
+```
+
+**What it creates:**
+
+| Path | Purpose |
+|------|---------|
+| `.claude/skills/readflow.md` | Skill file for Claude Code agents |
+| `.agents/skills/readflow.md` | Skill file for generic AI agents |
+| `.readflow/readflow.md` | Readflow-specific skill reference |
+| `.readflow/post-commit` | Git hook for auto-uploading tracked files |
+| `.readflow/config.json` | Project settings and tracked file list |
+
+The install command scans your project for `.md` files and shows an interactive picker:
+
+```
+  Track files for auto-upload (8 found)
+
+  > [x] README.md (always)
+    [ ] docs/api.md
+    [ ] docs/changelog.md
+    [x] CONTRIBUTING.md
+```
+
+After installing, enable auto-upload on commit:
+
+```bash
+cp .readflow/post-commit .git/hooks/post-commit
+chmod +x .git/hooks/post-commit
+```
+
 ### `config`
 
 Manage CLI settings.
@@ -118,39 +210,6 @@ readflow config --clear          # Remove token (go anonymous)
 ```
 
 You can generate an agent token from your [Settings page](https://readflow.aranish.uk/settings).
-
-### `install`
-
-Set up Readflow in a project. Creates a `.readflow/` directory with:
-
-- `CLAUDE.md` — commit guidelines and document sharing instructions for AI agents
-- `post-commit` — git hook that auto-uploads tracked markdown files on commit
-- `config.json` — project settings and tracked file list
-
-```bash
-readflow install
-readflow install --reconfigure   # Re-pick tracked files
-```
-
-The install command scans your project for `.md` files and shows an interactive checkbox picker:
-
-```
-  Track files for auto-upload (8 found)
-
-  ❯ [✓] README.md (always)
-    [ ] docs/api.md
-    [ ] docs/changelog.md
-    [✓] CONTRIBUTING.md
-```
-
-Use arrow keys to navigate, Space to toggle, `a` to select all, `n` to deselect all, Enter to confirm.
-
-After installing, enable auto-upload on commit:
-
-```bash
-cp .readflow/post-commit .git/hooks/post-commit
-chmod +x .git/hooks/post-commit
-```
 
 ## Authentication
 
@@ -174,8 +233,13 @@ Without authentication, `share` works anonymously (no dashboard, no editing) and
 ```bash
 # Share and get a link
 readflow share README.md
-#  ✓ Shared successfully!
+#  > Shared successfully!
 #  URL: https://readflow.aranish.uk/s/abc123
+
+# Upload project knowledge for your AI agent
+readflow brain
+#  > Brain uploaded successfully!
+#  URL: https://readflow.aranish.uk/s/def456
 
 # Password-protected doc that expires in 24 hours
 readflow share secret.md --password hunter2 --expires 24h
@@ -184,7 +248,7 @@ readflow share secret.md --password hunter2 --expires 24h
 readflow share CHANGELOG.md --title "Changelog" --update
 
 # Pipe from another command
-gh release view --json body -q .body | readflow share - --title "Release Notes"
+gh release view --json body -q .body | readflow share --title "Release Notes"
 
 # Download a doc by searching your account
 readflow fetch "changelog" -o CHANGELOG.md
