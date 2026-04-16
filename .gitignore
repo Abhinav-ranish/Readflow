@@ -21,3 +21,5 @@ promo/dist
 /docs
 .mcp.json
 CLAUDE.md
+/.agents
+/.readflow
