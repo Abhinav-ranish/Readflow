@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, ArrowLeft, Trash2, Pencil, ExternalLink, Check, X, ChevronRight, FolderOpen, FileText, User as UserIcon, Mail, Calendar, CreditCard, Crown, Key, BarChart3 } from 'lucide-react';
+import { Shield, ArrowLeft, Trash2, Pencil, ExternalLink, Check, X, ChevronRight, FolderOpen, FileText, User as UserIcon, Mail, Calendar, CreditCard, Crown, Key, BarChart3, BrainCircuit } from 'lucide-react';
 import styles from './page.module.css';
 import LoadingScreen from '@/components/LoadingScreen';
 
@@ -26,6 +26,18 @@ interface Doc {
     folder?: string;
     pinned?: boolean;
     preview?: string;
+}
+
+interface ProjectEntry {
+    id: string;
+    name: string;
+    userId: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    docCount: number;
+    createdAt: number;
+    updatedAt: number;
 }
 
 function DocFileItem({ doc, selected, editingDoc, editTitle, editSlug, setEditTitle, setEditSlug, setEditingDoc, onSelect, handleSaveDoc, handleDeleteDoc, handleDragStart, handleDragEnd, onRemoveFromUser }: {
@@ -120,6 +132,7 @@ export default function AdminPage() {
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [dragOverUser, setDragOverUser] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [projects, setProjects] = useState<ProjectEntry[]>([]);
 
     // Marquee selection state
     const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -141,6 +154,7 @@ export default function AdminPage() {
                 const data = await res.json();
                 setUsers(data.users);
                 setDocs(data.docs);
+                if (data.projects) setProjects(data.projects);
             } catch {
                 setError('Failed to load admin data.');
             } finally {
@@ -388,6 +402,8 @@ export default function AdminPage() {
                         <span>{users.length} users</span>
                         <span className={styles.statDot} />
                         <span>{docs.length} docs</span>
+                        <span className={styles.statDot} />
+                        <span>{projects.length} projects</span>
                     </div>
                 </div>
             </header>
@@ -467,6 +483,33 @@ export default function AdminPage() {
             {/* Main Finder area */}
             {!activeUser ? (
                 <div className={styles.finderGrid} ref={gridRef} onMouseDown={handleMarqueeStart}>
+                    {/* Projects */}
+                    {projects.length > 0 && (
+                        <>
+                            <div className={styles.sectionDivider}><BrainCircuit size={13} /><span>Projects ({projects.length})</span></div>
+                            {projects.map(p => {
+                                const owner = users.find(u => u.id === p.userId);
+                                return (
+                                    <Link
+                                        key={`project-${p.id}`}
+                                        href={`/project/${p.id}`}
+                                        className={`${styles.finderItem} ${styles.folderItem}`}
+                                        style={{ textDecoration: 'none' }}
+                                    >
+                                        <div className={styles.folderIcon}>
+                                            <BrainCircuit size={40} strokeWidth={1} />
+                                        </div>
+                                        <span className={styles.finderName}>{p.icon ? `${p.icon} ` : ''}{p.name}</span>
+                                        <span className={styles.finderMeta}>
+                                            {p.docCount} doc{p.docCount !== 1 ? 's' : ''}
+                                            {owner ? ` · ${owner.name || owner.email.split('@')[0]}` : ''}
+                                        </span>
+                                    </Link>
+                                );
+                            })}
+                            <div className={styles.sectionDivider}><span>Users</span></div>
+                        </>
+                    )}
                     {users.map(u => {
                         const userDocs = docs.filter(d => d.userId === u.id);
                         return (

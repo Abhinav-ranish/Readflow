@@ -19,10 +19,11 @@ export async function GET() {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const [users, docs] = await Promise.all([
+    const [users, docs, projects] = await Promise.all([
         db.getAllUsers(),
         db.getAllDocs(),
+        db.getAllProjects(),
     ]);
 
-    return NextResponse.json({ users, docs });
+    return NextResponse.json({ users, docs, projects });
 }

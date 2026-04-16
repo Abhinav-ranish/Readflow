@@ -59,6 +59,7 @@ export interface ProjectEntry {
     description?: string;
     icon?: string;
     color?: string;
+    docCount: number;
     createdAt: number;
     updatedAt: number;
 }
@@ -129,6 +130,7 @@ interface DBAdapter {
     createProject(name: string, userId: string, opts?: { description?: string; icon?: string; color?: string }): Promise<string>;
     getProject(id: string): Promise<ProjectEntry | null>;
     getProjectsByUser(userId: string): Promise<ProjectEntry[]>;
+    getAllProjects(): Promise<ProjectEntry[]>;
     updateProject(id: string, userId: string, updates: { name?: string; description?: string; icon?: string; color?: string }): Promise<boolean>;
     deleteProject(id: string, userId: string): Promise<boolean>;
     setDocProject(docId: string, userId: string, projectId: string | null): Promise<boolean>;
@@ -898,13 +900,26 @@ const localAdapter: DBAdapter = {
         const store = readStore();
         const p = store.projects?.[id];
         if (!p) return null;
-        return { id, name: p.name, userId: p.userId, teamId: p.teamId, description: p.description, icon: p.icon, color: p.color, createdAt: p.createdAt, updatedAt: p.updatedAt };
+        const docCount = Object.values(store.readmes || {}).filter((r: any) => r.projectId === id).length;
+        return { id, name: p.name, userId: p.userId, teamId: p.teamId, description: p.description, icon: p.icon, color: p.color, docCount, createdAt: p.createdAt, updatedAt: p.updatedAt };
     },
     async getProjectsByUser(userId) {
         const store = readStore();
         return Object.entries(store.projects || {})
             .filter(([, p]: [string, any]) => p.userId === userId)
-            .map(([id, p]: [string, any]) => ({ id, name: p.name, userId: p.userId, teamId: p.teamId, description: p.description, icon: p.icon, color: p.color, createdAt: p.createdAt, updatedAt: p.updatedAt }))
+            .map(([id, p]: [string, any]) => {
+                const docCount = Object.values(store.readmes || {}).filter((r: any) => r.projectId === id).length;
+                return { id, name: p.name, userId: p.userId, teamId: p.teamId, description: p.description, icon: p.icon, color: p.color, docCount, createdAt: p.createdAt, updatedAt: p.updatedAt };
+            })
+            .sort((a, b) => b.updatedAt - a.updatedAt);
+    },
+    async getAllProjects() {
+        const store = readStore();
+        return Object.entries(store.projects || {})
+            .map(([id, p]: [string, any]) => {
+                const docCount = Object.values(store.readmes || {}).filter((r: any) => r.projectId === id).length;
+                return { id, name: p.name, userId: p.userId, teamId: p.teamId, description: p.description, icon: p.icon, color: p.color, docCount, createdAt: p.createdAt, updatedAt: p.updatedAt };
+            })
             .sort((a, b) => b.updatedAt - a.updatedAt);
     },
     async updateProject(id, userId, updates) {
@@ -1009,35 +1024,36 @@ async function safeAlter(sql: string) {
 }
 
 async function ensureD1Tables() {
-    await queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER, ip_address TEXT, title TEXT, password_hash TEXT, expires_at INTEGER, user_id TEXT, slug TEXT)`);
-    await queryD1(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE, name TEXT, image TEXT, provider TEXT, provider_id TEXT, created_at INTEGER)`);
-    await queryD1(`CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, readme_id TEXT, user_id TEXT, author_name TEXT, content TEXT, created_at INTEGER)`);
-    await queryD1(`CREATE TABLE IF NOT EXISTS readme_versions (id TEXT PRIMARY KEY, readme_id TEXT, content TEXT, created_at INTEGER)`);
-    await queryD1(`CREATE TABLE IF NOT EXISTS readme_views (id INTEGER PRIMARY KEY AUTOINCREMENT, readme_id TEXT, ip TEXT, referrer TEXT, created_at INTEGER)`);
+    // Create all tables concurrently — these are independent
+    await Promise.all([
+        queryD1(`CREATE TABLE IF NOT EXISTS readmes (id TEXT PRIMARY KEY, content TEXT, created_at INTEGER, ip_address TEXT, title TEXT, password_hash TEXT, expires_at INTEGER, user_id TEXT, slug TEXT)`),
+        queryD1(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE, name TEXT, image TEXT, provider TEXT, provider_id TEXT, created_at INTEGER)`),
+        queryD1(`CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, readme_id TEXT, user_id TEXT, author_name TEXT, content TEXT, created_at INTEGER)`),
+        queryD1(`CREATE TABLE IF NOT EXISTS readme_versions (id TEXT PRIMARY KEY, readme_id TEXT, content TEXT, created_at INTEGER)`),
+        queryD1(`CREATE TABLE IF NOT EXISTS readme_views (id INTEGER PRIMARY KEY AUTOINCREMENT, readme_id TEXT, ip TEXT, referrer TEXT, created_at INTEGER)`),
+        queryD1(`CREATE TABLE IF NOT EXISTS teams (id TEXT PRIMARY KEY, name TEXT NOT NULL, owner_id TEXT NOT NULL, created_at INTEGER)`),
+        queryD1(`CREATE TABLE IF NOT EXISTS team_members (team_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT DEFAULT 'member', joined_at INTEGER, PRIMARY KEY (team_id, user_id))`),
+        queryD1(`CREATE TABLE IF NOT EXISTS presence (doc_id TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT, user_image TEXT, last_seen INTEGER, PRIMARY KEY (doc_id, user_id))`),
+        queryD1(`CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, user_id TEXT NOT NULL, team_id TEXT, description TEXT, icon TEXT, color TEXT, created_at INTEGER, updated_at INTEGER)`),
+        queryD1(`CREATE TABLE IF NOT EXISTS doc_links (source_id TEXT NOT NULL, target_id TEXT NOT NULL, project_id TEXT NOT NULL, link_text TEXT, created_at INTEGER, PRIMARY KEY (source_id, target_id, project_id))`),
+    ]);
 
-    // Migrate: add columns that may be missing from older table versions
-    await safeAlter(`ALTER TABLE readmes ADD COLUMN password_hash TEXT`);
-    await safeAlter(`ALTER TABLE readmes ADD COLUMN expires_at INTEGER`);
-    await safeAlter(`ALTER TABLE readmes ADD COLUMN user_id TEXT`);
-    await safeAlter(`ALTER TABLE readmes ADD COLUMN title TEXT`);
-    await safeAlter(`ALTER TABLE readmes ADD COLUMN slug TEXT`);
-    await safeAlter(`ALTER TABLE readmes ADD COLUMN folder TEXT`);
-    await safeAlter(`ALTER TABLE readmes ADD COLUMN pinned INTEGER DEFAULT 0`);
-    // User plan columns
-    await safeAlter(`ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'free'`);
-    await safeAlter(`ALTER TABLE users ADD COLUMN stripe_customer_id TEXT`);
-    await safeAlter(`ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT`);
-    await safeAlter(`ALTER TABLE users ADD COLUMN ai_credits_used INTEGER DEFAULT 0`);
-    // Teams
-    await queryD1(`CREATE TABLE IF NOT EXISTS teams (id TEXT PRIMARY KEY, name TEXT NOT NULL, owner_id TEXT NOT NULL, created_at INTEGER)`);
-    await queryD1(`CREATE TABLE IF NOT EXISTS team_members (team_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT DEFAULT 'member', joined_at INTEGER, PRIMARY KEY (team_id, user_id))`);
-    await safeAlter(`ALTER TABLE readmes ADD COLUMN team_id TEXT`);
-    // Presence
-    await queryD1(`CREATE TABLE IF NOT EXISTS presence (doc_id TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT, user_image TEXT, last_seen INTEGER, PRIMARY KEY (doc_id, user_id))`);
-    // Projects
-    await queryD1(`CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, user_id TEXT NOT NULL, team_id TEXT, description TEXT, icon TEXT, color TEXT, created_at INTEGER, updated_at INTEGER)`);
-    await queryD1(`CREATE TABLE IF NOT EXISTS doc_links (source_id TEXT NOT NULL, target_id TEXT NOT NULL, project_id TEXT NOT NULL, link_text TEXT, created_at INTEGER, PRIMARY KEY (source_id, target_id, project_id))`);
-    await safeAlter(`ALTER TABLE readmes ADD COLUMN project_id TEXT`);
+    // Migrations depend on tables existing — run concurrently with each other
+    await Promise.allSettled([
+        safeAlter(`ALTER TABLE readmes ADD COLUMN password_hash TEXT`),
+        safeAlter(`ALTER TABLE readmes ADD COLUMN expires_at INTEGER`),
+        safeAlter(`ALTER TABLE readmes ADD COLUMN user_id TEXT`),
+        safeAlter(`ALTER TABLE readmes ADD COLUMN title TEXT`),
+        safeAlter(`ALTER TABLE readmes ADD COLUMN slug TEXT`),
+        safeAlter(`ALTER TABLE readmes ADD COLUMN folder TEXT`),
+        safeAlter(`ALTER TABLE readmes ADD COLUMN pinned INTEGER DEFAULT 0`),
+        safeAlter(`ALTER TABLE readmes ADD COLUMN team_id TEXT`),
+        safeAlter(`ALTER TABLE readmes ADD COLUMN project_id TEXT`),
+        safeAlter(`ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'free'`),
+        safeAlter(`ALTER TABLE users ADD COLUMN stripe_customer_id TEXT`),
+        safeAlter(`ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT`),
+        safeAlter(`ALTER TABLE users ADD COLUMN ai_credits_used INTEGER DEFAULT 0`),
+    ]);
 }
 
 // Track init
@@ -1502,15 +1518,28 @@ const cloudflareAdapter: DBAdapter = {
     },
     async getProject(id) {
         await initD1();
-        const results = await queryD1(`SELECT * FROM projects WHERE id = ? LIMIT 1`, [id]);
+        const results = await queryD1(
+            `SELECT p.*, COUNT(r.id) as doc_count FROM projects p LEFT JOIN readmes r ON r.project_id = p.id WHERE p.id = ? GROUP BY p.id LIMIT 1`,
+            [id]
+        );
         if (results.length === 0) return null;
         const p = results[0];
-        return { id: p.id, name: p.name, userId: p.user_id, teamId: p.team_id || undefined, description: p.description || undefined, icon: p.icon || undefined, color: p.color || undefined, createdAt: p.created_at, updatedAt: p.updated_at };
+        return { id: p.id, name: p.name, userId: p.user_id, teamId: p.team_id || undefined, description: p.description || undefined, icon: p.icon || undefined, color: p.color || undefined, docCount: p.doc_count || 0, createdAt: p.created_at, updatedAt: p.updated_at };
     },
     async getProjectsByUser(userId) {
         await initD1();
-        const results = await queryD1(`SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC`, [userId]);
-        return results.map((p: any) => ({ id: p.id, name: p.name, userId: p.user_id, teamId: p.team_id || undefined, description: p.description || undefined, icon: p.icon || undefined, color: p.color || undefined, createdAt: p.created_at, updatedAt: p.updated_at }));
+        const results = await queryD1(
+            `SELECT p.*, COUNT(r.id) as doc_count FROM projects p LEFT JOIN readmes r ON r.project_id = p.id WHERE p.user_id = ? GROUP BY p.id ORDER BY p.updated_at DESC`,
+            [userId]
+        );
+        return results.map((p: any) => ({ id: p.id, name: p.name, userId: p.user_id, teamId: p.team_id || undefined, description: p.description || undefined, icon: p.icon || undefined, color: p.color || undefined, docCount: p.doc_count || 0, createdAt: p.created_at, updatedAt: p.updated_at }));
+    },
+    async getAllProjects() {
+        await initD1();
+        const results = await queryD1(
+            `SELECT p.*, COUNT(r.id) as doc_count FROM projects p LEFT JOIN readmes r ON r.project_id = p.id GROUP BY p.id ORDER BY p.updated_at DESC`
+        );
+        return results.map((p: any) => ({ id: p.id, name: p.name, userId: p.user_id, teamId: p.team_id || undefined, description: p.description || undefined, icon: p.icon || undefined, color: p.color || undefined, docCount: p.doc_count || 0, createdAt: p.created_at, updatedAt: p.updated_at }));
     },
     async updateProject(id, userId, updates) {
         await initD1();
