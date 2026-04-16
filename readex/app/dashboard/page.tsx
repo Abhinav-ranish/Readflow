@@ -430,9 +430,9 @@ function DashboardContent() {
                     <button className={styles.uploadBtn} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                         <Upload size={14} /> Upload
                     </button>
-                    <button className={styles.uploadBtn} onClick={() => { setNewProjectModal(true); setNewProjectName(''); }}>
-                        <BrainCircuit size={14} /> Project
-                    </button>
+                    <Link href="/brains" className={styles.uploadBtn}>
+                        <BrainCircuit size={14} /> Brains
+                    </Link>
                     <Link href="/" className={styles.newBtn}>
                         <Plus size={16} /> New
                     </Link>
@@ -449,7 +449,7 @@ function DashboardContent() {
                     {/* Sidebar */}
                     <aside className={styles.sidebar}>
                         <div className={styles.sidebarHeader}>
-                            <span className={styles.sidebarTitle}>Projects</span>
+                            <span className={styles.sidebarTitle}>Documents</span>
                             <button className={styles.sidebarAction} onClick={() => setCreatingFolder(true)} title="New folder">
                                 <FolderPlus size={14} />
                             </button>
@@ -476,25 +476,6 @@ function DashboardContent() {
                             <span>All Documents</span>
                             <span className={styles.sidebarCount}>{docs.length}</span>
                         </button>
-
-                        {projects.length > 0 && (
-                            <>
-                                <div className={styles.sidebarDivider} />
-                                {projects.map(p => (
-                                    <Link
-                                        key={p.id}
-                                        href={`/project/${p.id}`}
-                                        className={styles.sidebarItem}
-                                        style={{ color: '#8b5cf6' }}
-                                    >
-                                        <BrainCircuit size={14} />
-                                        <span className={styles.sidebarFolderName}>{p.name}</span>
-                                        <span className={styles.sidebarCount}>{p.docCount}</span>
-                                    </Link>
-                                ))}
-                                <div className={styles.sidebarDivider} />
-                            </>
-                        )}
 
                         {folders.map(f => {
                             const folderDocs = docs.filter(d => d.folder === f);
@@ -530,11 +511,11 @@ function DashboardContent() {
                             );
                         })}
 
-                        {allRootDocs.length > 0 && (
+                        {allRootDocs.length > 0 && folders.length > 0 && (
                             <>
                                 <div className={styles.sidebarDivider} />
                                 <button
-                                    className={`${styles.sidebarItem} ${activeFolder === null ? '' : ''}`}
+                                    className={styles.sidebarItem}
                                     onClick={() => setActiveFolder(null)}
                                     style={{ opacity: 0.7 }}
                                 >
@@ -639,7 +620,7 @@ function DashboardContent() {
                                 value={newFolderName}
                                 onChange={e => setNewFolderName(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') { setCreatingFolder(false); setNewFolderName(''); } }}
-                                placeholder="Project name..."
+                                placeholder="Folder name..."
                             />
                             <button className={styles.folderInputBtn} onClick={handleCreateFolder}>Create</button>
                             <button className={styles.folderInputCancel} onClick={() => { setCreatingFolder(false); setNewFolderName(''); }}><X size={14} /></button>
@@ -647,25 +628,6 @@ function DashboardContent() {
                     )}
 
                     <div className={styles.finderGrid} ref={gridRef} onMouseDown={handleMarqueeStart}>
-                        {/* Project cards */}
-                        {!activeFolder && projects.length > 0 && projects.map(p => (
-                            <div
-                                key={`project-${p.id}`}
-                                className={`${styles.finderItem} ${styles.folderItem} ${styles.projectItem}`}
-                                onDoubleClick={() => router.push(`/project/${p.id}`)}
-                            >
-                                <div className={styles.projectIcon}>
-                                    <BrainCircuit size={40} strokeWidth={1.2} />
-                                </div>
-                                <span className={styles.finderName}>{p.icon ? `${p.icon} ` : ''}{p.name}</span>
-                                <span className={styles.finderMeta}>{p.docCount} doc{p.docCount !== 1 ? 's' : ''}</span>
-                            </div>
-                        ))}
-
-                        {!activeFolder && projects.length > 0 && (folders.length > 0 || allRootDocs.length > 0) && (
-                            <div className={styles.sectionDivider}><span>Folders</span></div>
-                        )}
-
                         {!activeFolder && folders.map(f => {
                             const folderDocs = docs.filter(d => d.folder === f);
                             return (

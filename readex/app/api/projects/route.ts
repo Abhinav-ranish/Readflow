@@ -9,16 +9,7 @@ export async function GET() {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const projects = await db.getProjectsByUser(userId);
-
-    // Attach doc counts
-    const results = await Promise.all(
-        projects.map(async (p) => {
-            const docs = await db.getProjectDocs(p.id);
-            return { ...p, docCount: docs.length };
-        })
-    );
-
-    return NextResponse.json(results);
+    return NextResponse.json(projects);
 }
 
 // POST /api/projects — create a project
