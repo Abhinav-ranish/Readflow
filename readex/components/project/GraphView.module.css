@@ -2,7 +2,7 @@
     position: relative;
     width: 100%;
     height: 100%;
-    min-height: 400px;
+    min-height: 500px;
     background-color: var(--bg-primary);
     border-radius: 8px;
     overflow: hidden;
@@ -24,25 +24,26 @@
     right: 12px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     background-color: var(--bg-tertiary);
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
     padding: 4px;
+    backdrop-filter: blur(8px);
 }
 
 .controlBtn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
     border: none;
     background: none;
     color: var(--fg-secondary);
     cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.12s;
+    border-radius: 6px;
+    transition: all 0.15s;
 }
 
 .controlBtn:hover {
@@ -55,11 +56,18 @@
     pointer-events: none;
     background-color: var(--bg-tertiary);
     border: 1px solid var(--border-subtle);
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 8px 12px;
-    box-shadow: 0 4px 12px var(--shadow-color);
+    box-shadow: 0 4px 16px var(--shadow-color);
     z-index: 10;
-    max-width: 200px;
+    max-width: 220px;
+    backdrop-filter: blur(8px);
+    animation: tooltipIn 0.12s ease-out;
+}
+
+@keyframes tooltipIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .tooltipTitle {
