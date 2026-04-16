@@ -65,13 +65,6 @@ export async function POST(request: NextRequest) {
             validExpiry = num;
         }
 
-        // Rate Limiting
-        const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
-        const allowed = await db.checkRateLimit(ip);
-        if (!allowed) {
-            return NextResponse.json({ error: 'Rate limit exceeded. Please try again later.' }, { status: 429 });
-        }
-
         // Get user — authentication required
         let userId: string | undefined;
         const authHeader = request.headers.get('authorization');
@@ -92,6 +85,8 @@ export async function POST(request: NextRequest) {
         if (!userId) {
             return NextResponse.json({ error: 'Authentication required. Log in or provide an API token.' }, { status: 401 });
         }
+
+        const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
         // Upsert by slug: if upsertSlug provided and user is authenticated,
         // find existing doc by slug and update it (slug is unique per doc, no collision risk)
