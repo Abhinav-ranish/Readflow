@@ -28,17 +28,18 @@ interface GraphViewProps {
 }
 
 function getNodeRadius(linkCount: number, total: number): number {
-    const base = total > 60 ? 5 : total > 30 ? 7 : 8;
-    return Math.max(base, Math.min(24, base + linkCount * 2.5));
+    const base = total > 80 ? 4 : total > 40 ? 6 : 8;
+    return Math.max(base, Math.min(22, base + linkCount * 2));
 }
 
 export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: GraphViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [zoom, setZoom] = useState(1);
-    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const panRef = useRef({ x: 0, y: 0 });
+    const [panState, setPanState] = useState({ x: 0, y: 0 });
     const [tooltip, setTooltip] = useState<{ x: number; y: number; title: string; linkCount: number } | null>(null);
-    const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+    const hoveredRef = useRef<string | null>(null);
 
     const draggingCanvas = useRef(false);
     const draggingNode = useRef<GraphNode | null>(null);
@@ -48,7 +49,13 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
     const animRef = useRef<number>(0);
     const tickRef = useRef(0);
     const alphaRef = useRef(1);
-    const colorsRef = useRef({ fg: '#adbac7', fgMuted: '#768390', accent: '#539bf5', accentGlow: 'rgba(83,155,245,0.3)', bg: '#1c2128', border: '#444c56', nodeBg: '#2d333b', edgeColor: 'rgba(68,76,86,0.4)' });
+    const didAutoFit = useRef(false);
+    const zoomRef = useRef(1);
+    const colorsRef = useRef({ fg: '#adbac7', fgMuted: '#768390', accent: '#539bf5', bg: '#1c2128', border: '#444c56', nodeBg: '#2d333b' });
+
+    // Keep refs in sync with state
+    useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+    useEffect(() => { panRef.current = panState; }, [panState]);
 
     const getThemeColors = useCallback(() => {
         if (typeof window === 'undefined') return;
@@ -58,35 +65,52 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
             fg: cs.getPropertyValue('--fg-primary').trim() || '#adbac7',
             fgMuted: cs.getPropertyValue('--fg-muted').trim() || '#768390',
             accent,
-            accentGlow: accent + '40',
             bg: cs.getPropertyValue('--bg-primary').trim() || '#1c2128',
             border: cs.getPropertyValue('--border-subtle').trim() || '#444c56',
             nodeBg: cs.getPropertyValue('--bg-tertiary').trim() || '#2d333b',
-            edgeColor: (cs.getPropertyValue('--border-subtle').trim() || '#444c56') + '66',
         };
     }, []);
 
-    // Initialize nodes
+    const fitToScreen = useCallback(() => {
+        const nodes = nodesRef.current;
+        if (nodes.length === 0) return;
+        const container = containerRef.current;
+        if (!container) return;
+        const w = container.clientWidth, h = container.clientHeight;
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const n of nodes) {
+            minX = Math.min(minX, n.x - n.radius - 60);
+            maxX = Math.max(maxX, n.x + n.radius + 60);
+            minY = Math.min(minY, n.y - n.radius - 30);
+            maxY = Math.max(maxY, n.y + n.radius + 30);
+        }
+        const gw = maxX - minX || 1, gh = maxY - minY || 1;
+        const newZoom = Math.min(w / gw, h / gh, 1.5) * 0.9;
+        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        setZoom(newZoom);
+        const newPan = { x: w / 2 - cx * newZoom, y: h / 2 - cy * newZoom };
+        setPanState(newPan);
+        panRef.current = newPan;
+        zoomRef.current = newZoom;
+    }, []);
+
+    // Initialize nodes — spread in a large circle, no clamping
     useEffect(() => {
         if (rawNodes.length === 0) return;
-        const container = containerRef.current;
-        const w = container?.clientWidth || 800;
-        const h = container?.clientHeight || 600;
-        const cx = w / 2, cy = h / 2;
-
+        const n = rawNodes.length;
+        // Use a spiral layout for initial positions — much better than a circle for many nodes
         const map = new Map<string, GraphNode>();
-        const simNodes: GraphNode[] = rawNodes.map((n, i) => {
-            const angle = (2 * Math.PI * i) / rawNodes.length;
-            const spread = Math.min(w, h) * 0.35;
-            const jitter = () => (Math.random() - 0.5) * 40;
+        const simNodes: GraphNode[] = rawNodes.map((nd, i) => {
+            const angle = i * 2.399963; // golden angle in radians
+            const r = 18 * Math.sqrt(i + 1);
             const node: GraphNode = {
-                ...n,
-                x: cx + spread * Math.cos(angle) + jitter(),
-                y: cy + spread * Math.sin(angle) + jitter(),
+                ...nd,
+                x: r * Math.cos(angle),
+                y: r * Math.sin(angle),
                 vx: 0, vy: 0,
-                radius: getNodeRadius(n.linkCount, rawNodes.length),
+                radius: getNodeRadius(nd.linkCount, n),
             };
-            map.set(n.id, node);
+            map.set(nd.id, node);
             return node;
         });
 
@@ -94,21 +118,23 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
         nodeMapRef.current = map;
         alphaRef.current = 1;
         tickRef.current = 0;
+        didAutoFit.current = false;
     }, [rawNodes]);
 
-    // Draw + simulate loop
+    // Main simulation + render loop
     useEffect(() => {
         getThemeColors();
         const canvas = canvasRef.current;
         const container = containerRef.current;
         if (!canvas || !container || rawNodes.length === 0) return;
 
-        const edgeMap = new Map<string, Set<string>>();
+        // Build adjacency for connected-component awareness
+        const neighbors = new Map<string, Set<string>>();
         for (const e of edges) {
-            if (!edgeMap.has(e.source)) edgeMap.set(e.source, new Set());
-            if (!edgeMap.has(e.target)) edgeMap.set(e.target, new Set());
-            edgeMap.get(e.source)!.add(e.target);
-            edgeMap.get(e.target)!.add(e.source);
+            if (!neighbors.has(e.source)) neighbors.set(e.source, new Set());
+            if (!neighbors.has(e.target)) neighbors.set(e.target, new Set());
+            neighbors.get(e.source)!.add(e.target);
+            neighbors.get(e.target)!.add(e.source);
         }
 
         let running = true;
@@ -117,35 +143,37 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
             if (!running) return;
             const nodes = nodesRef.current;
             const map = nodeMapRef.current;
-            const w = container.clientWidth || 800;
-            const h = container.clientHeight || 600;
-            const cx = w / 2, cy = h / 2;
-
             const alpha = alphaRef.current;
+            const z = zoomRef.current;
+            const p = panRef.current;
 
             if (alpha > 0.001) {
-                // Repulsion (Barnes-Hut approximation for large graphs: skip far pairs)
-                const repulStr = nodes.length > 80 ? 600 : 1200;
-                for (let i = 0; i < nodes.length; i++) {
+                const n = nodes.length;
+                // Adaptive repulsion: stronger for more nodes
+                const repulStr = n > 100 ? 3000 : n > 50 ? 2500 : 2000;
+                const maxRepulDist = n > 100 ? 800 : 600;
+
+                // Repulsion between all nodes — NO boundary clamping
+                for (let i = 0; i < n; i++) {
                     const a = nodes[i];
                     if (a.pinned) continue;
-                    for (let j = i + 1; j < nodes.length; j++) {
+                    for (let j = i + 1; j < n; j++) {
                         const b = nodes[j];
-                        let dx = b.x - a.x || 0.1;
-                        let dy = b.y - a.y || 0.1;
+                        const dx = (b.x - a.x) || (Math.random() - 0.5);
+                        const dy = (b.y - a.y) || (Math.random() - 0.5);
                         const distSq = dx * dx + dy * dy;
-                        if (distSq > 250000) continue; // Skip very far pairs
+                        if (distSq > maxRepulDist * maxRepulDist) continue;
                         const dist = Math.sqrt(distSq);
-                        const force = repulStr / (distSq + 1);
-                        const fx = (dx / dist) * force * alpha;
-                        const fy = (dy / dist) * force * alpha;
+                        const force = repulStr / (distSq + 10) * alpha;
+                        const fx = (dx / dist) * force;
+                        const fy = (dy / dist) * force;
                         a.vx -= fx; a.vy -= fy;
                         if (!b.pinned) { b.vx += fx; b.vy += fy; }
                     }
                 }
 
-                // Edge attraction
-                const idealDist = nodes.length > 60 ? 100 : 140;
+                // Edge attraction — pull connected nodes closer
+                const idealDist = n > 80 ? 80 : n > 40 ? 100 : 120;
                 for (const edge of edges) {
                     const a = map.get(edge.source);
                     const b = map.get(edge.target);
@@ -153,131 +181,145 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
                     const dx = b.x - a.x;
                     const dy = b.y - a.y;
                     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const force = (dist - idealDist) * 0.008 * alpha;
+                    const force = (dist - idealDist) * 0.01 * alpha;
                     const fx = (dx / dist) * force;
                     const fy = (dy / dist) * force;
                     if (!a.pinned) { a.vx += fx; a.vy += fy; }
                     if (!b.pinned) { b.vx -= fx; b.vy -= fy; }
                 }
 
-                // Center gravity
-                for (const n of nodes) {
-                    if (n.pinned) continue;
-                    n.vx += (cx - n.x) * 0.0008 * alpha;
-                    n.vy += (cy - n.y) * 0.0008 * alpha;
+                // Very gentle center gravity — keeps the graph from drifting forever
+                for (const nd of nodes) {
+                    if (nd.pinned) continue;
+                    nd.vx -= nd.x * 0.0003 * alpha;
+                    nd.vy -= nd.y * 0.0003 * alpha;
                 }
 
-                // Apply velocity
-                for (const n of nodes) {
-                    if (n.pinned) continue;
-                    n.vx *= 0.88;
-                    n.vy *= 0.88;
-                    n.x += n.vx;
-                    n.y += n.vy;
-                    n.x = Math.max(n.radius + 5, Math.min(w - n.radius - 5, n.x));
-                    n.y = Math.max(n.radius + 5, Math.min(h - n.radius - 5, n.y));
+                // Apply velocity with damping — no boundary clamping
+                for (const nd of nodes) {
+                    if (nd.pinned) continue;
+                    nd.vx *= 0.85;
+                    nd.vy *= 0.85;
+                    nd.x += nd.vx;
+                    nd.y += nd.vy;
                 }
 
-                alphaRef.current *= 0.995;
+                alphaRef.current *= 0.994;
+
+                // Auto-fit once simulation is mostly settled
+                if (!didAutoFit.current && alpha < 0.15) {
+                    didAutoFit.current = true;
+                    // Use setTimeout to avoid calling setState inside the animation frame
+                    setTimeout(() => fitToScreen(), 0);
+                }
             }
 
-            // Draw
+            // ─── DRAW ───
             const dpr = window.devicePixelRatio || 1;
             const rect = canvas.getBoundingClientRect();
-            if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
-                canvas.width = rect.width * dpr;
-                canvas.height = rect.height * dpr;
+            const cw = rect.width * dpr, ch = rect.height * dpr;
+            if (canvas.width !== cw || canvas.height !== ch) {
+                canvas.width = cw; canvas.height = ch;
             }
             const ctx = canvas.getContext('2d')!;
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
             const c = colorsRef.current;
             ctx.clearRect(0, 0, rect.width, rect.height);
             ctx.save();
-            ctx.translate(pan.x, pan.y);
-            ctx.scale(zoom, zoom);
+            ctx.translate(p.x, p.y);
+            ctx.scale(z, z);
 
-            const time = tickRef.current * 0.02;
+            const time = tickRef.current * 0.015;
             tickRef.current++;
+            const hovered = hoveredRef.current;
 
-            // Edges with animated pulse
+            // Edges
             for (const edge of edges) {
                 const a = map.get(edge.source);
                 const b = map.get(edge.target);
                 if (!a || !b) continue;
-
-                const isHovered = hoveredNode === a.id || hoveredNode === b.id;
+                const isHot = hovered === a.id || hovered === b.id;
                 ctx.beginPath();
                 ctx.moveTo(a.x, a.y);
                 ctx.lineTo(b.x, b.y);
-                ctx.strokeStyle = isHovered ? c.accent : c.edgeColor;
-                ctx.lineWidth = isHovered ? 2 : 1;
-                ctx.globalAlpha = isHovered ? 0.8 : 0.35 + 0.1 * Math.sin(time + a.x * 0.01);
+                if (isHot) {
+                    ctx.strokeStyle = c.accent;
+                    ctx.lineWidth = 2 / z;
+                    ctx.globalAlpha = 0.7;
+                } else {
+                    ctx.strokeStyle = c.border;
+                    ctx.lineWidth = 1 / z;
+                    ctx.globalAlpha = 0.2 + 0.05 * Math.sin(time + a.x * 0.005);
+                }
                 ctx.stroke();
                 ctx.globalAlpha = 1;
             }
 
-            // Nodes
-            for (const node of nodes) {
-                const isHovered = hoveredNode === node.id;
-                const r = node.radius;
-                const connected = node.linkCount > 0;
+            // Determine which labels to show based on zoom and density
+            const showAllLabels = z > 0.5;
+            const showSomeLabels = z > 0.25;
 
-                // Glow for hovered or highly-connected nodes
-                if (isHovered || node.linkCount > 4) {
-                    const glowR = r + (isHovered ? 12 : 6);
-                    const grad = ctx.createRadialGradient(node.x, node.y, r * 0.5, node.x, node.y, glowR);
-                    grad.addColorStop(0, isHovered ? c.accent + '50' : c.accent + '20');
+            // Nodes
+            for (const nd of nodes) {
+                const isHovered = hovered === nd.id;
+                const connected = nd.linkCount > 0;
+                const r = nd.radius;
+
+                // Glow
+                if (isHovered || nd.linkCount > 5) {
+                    const glowR = r + (isHovered ? 14 : 8);
+                    const grad = ctx.createRadialGradient(nd.x, nd.y, r * 0.4, nd.x, nd.y, glowR);
+                    grad.addColorStop(0, c.accent + (isHovered ? '55' : '22'));
                     grad.addColorStop(1, 'transparent');
                     ctx.beginPath();
-                    ctx.arc(node.x, node.y, glowR, 0, Math.PI * 2);
+                    ctx.arc(nd.x, nd.y, glowR, 0, Math.PI * 2);
                     ctx.fillStyle = grad;
                     ctx.fill();
                 }
 
-                // Subtle breathing animation on connected nodes
-                const breathe = connected ? 1 + 0.03 * Math.sin(time * 0.8 + node.x * 0.05) : 1;
-                const drawR = r * breathe;
+                // Breathing
+                const breathe = connected ? 1 + 0.025 * Math.sin(time * 0.6 + nd.y * 0.03) : 1;
+                const dr = r * breathe;
 
-                // Node fill
+                // Fill
                 ctx.beginPath();
-                ctx.arc(node.x, node.y, drawR, 0, Math.PI * 2);
+                ctx.arc(nd.x, nd.y, dr, 0, Math.PI * 2);
                 if (connected) {
-                    const grad = ctx.createRadialGradient(node.x - drawR * 0.3, node.y - drawR * 0.3, 0, node.x, node.y, drawR);
-                    grad.addColorStop(0, isHovered ? '#7cc4fa' : c.accent);
-                    grad.addColorStop(1, isHovered ? c.accent : '#2a6cb8');
+                    const grad = ctx.createRadialGradient(nd.x - dr * 0.25, nd.y - dr * 0.25, 0, nd.x, nd.y, dr);
+                    grad.addColorStop(0, isHovered ? '#8ad0ff' : c.accent);
+                    grad.addColorStop(1, isHovered ? c.accent : '#1a5090');
                     ctx.fillStyle = grad;
                 } else {
                     ctx.fillStyle = isHovered ? c.border : c.nodeBg;
                 }
                 ctx.fill();
-
-                // Border
                 ctx.strokeStyle = isHovered ? c.accent : c.border;
-                ctx.lineWidth = isHovered ? 2 : 1;
+                ctx.lineWidth = (isHovered ? 2 : 0.8) / z;
                 ctx.stroke();
 
                 // Label
-                const fontSize = Math.max(9, Math.min(12, 10 + node.linkCount * 0.3));
-                ctx.font = `${isHovered ? '600' : '400'} ${fontSize}px system-ui, -apple-system, sans-serif`;
-                ctx.fillStyle = isHovered ? c.fg : c.fgMuted;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-                const maxLabelLen = zoom < 0.6 ? 12 : zoom < 1 ? 16 : 22;
-                const label = node.title.length > maxLabelLen ? node.title.slice(0, maxLabelLen - 2) + '...' : node.title;
-                ctx.fillText(label, node.x, node.y + drawR + 5);
+                const shouldShowLabel = isHovered || (showAllLabels) || (showSomeLabels && nd.linkCount > 2);
+                if (shouldShowLabel) {
+                    const fontSize = Math.max(8, Math.min(12, 9 + nd.linkCount * 0.3)) / Math.max(z, 0.4);
+                    ctx.font = `${isHovered ? '600' : '400'} ${fontSize}px system-ui, -apple-system, sans-serif`;
+                    ctx.fillStyle = isHovered ? c.fg : c.fgMuted;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    const maxLen = z > 0.8 ? 24 : z > 0.5 ? 16 : 10;
+                    const label = nd.title.length > maxLen ? nd.title.slice(0, maxLen - 1) + '\u2026' : nd.title;
+                    ctx.fillText(label, nd.x, nd.y + dr + 4 / z);
+                }
             }
 
             ctx.restore();
-
             animRef.current = requestAnimationFrame(tick);
         };
 
         animRef.current = requestAnimationFrame(tick);
         return () => { running = false; cancelAnimationFrame(animRef.current); };
-    }, [rawNodes, edges, zoom, pan, hoveredNode, getThemeColors]);
+    }, [rawNodes, edges, getThemeColors, fitToScreen]);
 
-    // Resize handler
+    // Resize
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
@@ -290,16 +332,17 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return { x: 0, y: 0 };
         return {
-            x: (clientX - rect.left - pan.x) / zoom,
-            y: (clientY - rect.top - pan.y) / zoom,
+            x: (clientX - rect.left - panRef.current.x) / zoomRef.current,
+            y: (clientY - rect.top - panRef.current.y) / zoomRef.current,
         };
-    }, [pan, zoom]);
+    }, []);
 
     const hitTest = useCallback((wx: number, wy: number): GraphNode | null => {
-        for (let i = nodesRef.current.length - 1; i >= 0; i--) {
-            const n = nodesRef.current[i];
+        const nodes = nodesRef.current;
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const n = nodes[i];
             const dx = wx - n.x, dy = wy - n.y;
-            if (dx * dx + dy * dy < (n.radius + 5) * (n.radius + 5)) return n;
+            if (dx * dx + dy * dy < (n.radius + 6) * (n.radius + 6)) return n;
         }
         return null;
     }, []);
@@ -311,12 +354,12 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
         if (node) {
             draggingNode.current = node;
             node.pinned = true;
-            alphaRef.current = Math.max(alphaRef.current, 0.3); // reheat
+            alphaRef.current = Math.max(alphaRef.current, 0.3);
         } else {
             draggingCanvas.current = true;
-            dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+            dragStart.current = { x: e.clientX, y: e.clientY, panX: panRef.current.x, panY: panRef.current.y };
         }
-    }, [pan, screenToWorld, hitTest]);
+    }, [screenToWorld, hitTest]);
 
     const handleMouseMove = useCallback((e: React.MouseEvent) => {
         const canvas = canvasRef.current;
@@ -335,10 +378,12 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
         }
 
         if (draggingCanvas.current) {
-            setPan({
+            const newPan = {
                 x: dragStart.current.panX + (e.clientX - dragStart.current.x),
                 y: dragStart.current.panY + (e.clientY - dragStart.current.y),
-            });
+            };
+            setPanState(newPan);
+            panRef.current = newPan;
             setTooltip(null);
             canvas.style.cursor = 'grabbing';
             return;
@@ -349,11 +394,11 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
         if (node) {
             const rect = canvas.getBoundingClientRect();
             setTooltip({ x: e.clientX - rect.left + 14, y: e.clientY - rect.top - 10, title: node.title, linkCount: node.linkCount });
-            setHoveredNode(node.id);
+            hoveredRef.current = node.id;
             canvas.style.cursor = 'pointer';
         } else {
             setTooltip(null);
-            setHoveredNode(null);
+            hoveredRef.current = null;
             canvas.style.cursor = 'grab';
         }
     }, [screenToWorld, hitTest]);
@@ -367,9 +412,7 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
     }, []);
 
     const handleClick = useCallback((e: React.MouseEvent) => {
-        if (!onNodeClick) return;
-        // Don't trigger click after drag
-        if (draggingCanvas.current) return;
+        if (!onNodeClick || draggingCanvas.current) return;
         const { x, y } = screenToWorld(e.clientX, e.clientY);
         const node = hitTest(x, y);
         if (node) onNodeClick(node.id);
@@ -381,34 +424,17 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
         if (!rect) return;
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
+        const z = zoomRef.current;
         const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
-        const newZoom = Math.max(0.15, Math.min(4, zoom * scaleFactor));
-        // Zoom toward cursor
-        setPan(p => ({
-            x: mx - (mx - p.x) * (newZoom / zoom),
-            y: my - (my - p.y) * (newZoom / zoom),
-        }));
+        const newZoom = Math.max(0.08, Math.min(5, z * scaleFactor));
+        const newPan = {
+            x: mx - (mx - panRef.current.x) * (newZoom / z),
+            y: my - (my - panRef.current.y) * (newZoom / z),
+        };
         setZoom(newZoom);
-    }, [zoom]);
-
-    const fitToScreen = useCallback(() => {
-        const nodes = nodesRef.current;
-        if (nodes.length === 0) return;
-        const container = containerRef.current;
-        if (!container) return;
-        const w = container.clientWidth, h = container.clientHeight;
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        for (const n of nodes) {
-            minX = Math.min(minX, n.x - n.radius);
-            maxX = Math.max(maxX, n.x + n.radius);
-            minY = Math.min(minY, n.y - n.radius);
-            maxY = Math.max(maxY, n.y + n.radius);
-        }
-        const gw = maxX - minX + 80, gh = maxY - minY + 80;
-        const newZoom = Math.min(w / gw, h / gh, 2);
-        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-        setZoom(newZoom);
-        setPan({ x: w / 2 - cx * newZoom, y: h / 2 - cy * newZoom });
+        setPanState(newPan);
+        panRef.current = newPan;
+        zoomRef.current = newZoom;
     }, []);
 
     if (rawNodes.length === 0) {
@@ -429,7 +455,7 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
-                onMouseLeave={() => { handleMouseUp(); setTooltip(null); setHoveredNode(null); }}
+                onMouseLeave={() => { handleMouseUp(); setTooltip(null); hoveredRef.current = null; }}
                 onClick={handleClick}
                 onWheel={handleWheel}
             />
@@ -442,16 +468,16 @@ export default function GraphView({ nodes: rawNodes, edges, onNodeClick }: Graph
             )}
 
             <div className={styles.controls}>
-                <button className={styles.controlBtn} onClick={() => setZoom(z => Math.min(4, z * 1.2))} title="Zoom in">
+                <button className={styles.controlBtn} onClick={() => { setZoom(z => { const nz = Math.min(5, z * 1.3); zoomRef.current = nz; return nz; }); }} title="Zoom in">
                     <ZoomIn size={14} />
                 </button>
-                <button className={styles.controlBtn} onClick={() => setZoom(z => Math.max(0.15, z / 1.2))} title="Zoom out">
+                <button className={styles.controlBtn} onClick={() => { setZoom(z => { const nz = Math.max(0.08, z / 1.3); zoomRef.current = nz; return nz; }); }} title="Zoom out">
                     <ZoomOut size={14} />
                 </button>
                 <button className={styles.controlBtn} onClick={fitToScreen} title="Fit to screen">
                     <Maximize2 size={14} />
                 </button>
-                <button className={styles.controlBtn} onClick={() => { alphaRef.current = 1; }} title="Re-layout">
+                <button className={styles.controlBtn} onClick={() => { alphaRef.current = 1; didAutoFit.current = false; }} title="Re-layout">
                     <RotateCcw size={14} />
                 </button>
             </div>
